@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
+const OR_TENANT = '00000000-0000-0000-0000-000000000001'
+
 type Product = {
   id: string
   jan_code: string | null
@@ -25,7 +27,10 @@ export default function ProductsPage() {
 
   async function loadProducts() {
     setLoading(true)
-    const { data, error } = await supabase.from('products').select('id, jan_code, name, weight_g, category, price_per_100g, is_active').order('name')
+    const { data, error } = await supabase.from('products')
+      .select('id, jan_code, name, weight_g, category, price_per_100g, is_active')
+      .eq('tenant_id', OR_TENANT)
+      .order('name')
     if (!error && data) setProducts(data)
     setLoading(false)
   }
@@ -33,7 +38,7 @@ export default function ProductsPage() {
   async function handleSave() {
     if (!form.name) { setError('商品名は必須です'); return }
     const payload = {
-      tenant_id: '4873f0e8-f10c-4671-a2c2-37d8228dd9da',
+      tenant_id: OR_TENANT,
       jan_code: form.jan_code || null,
       name: form.name,
       weight_g: form.weight_g ? parseFloat(form.weight_g) : null,
@@ -71,10 +76,9 @@ export default function ProductsPage() {
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, padding: '1.5rem', marginBottom: '1rem' }}>
           <h2 style={{ fontWeight: 'bold', marginBottom: '1rem' }}>新規商品</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>コード（JAN等）</label><input type='text' placeholder='RICE-5KG' value={form.jan_code} onChange={e => setForm(f => ({ ...f, jan_code: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
+            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>コード</label><input type='text' placeholder='RICE-5KG' value={form.jan_code} onChange={e => setForm(f => ({ ...f, jan_code: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
             <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>商品名*</label><input type='text' placeholder='九州産ひのひかり無洗米５㎏' value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
             <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>単位・ロット</label><input type='text' placeholder='5㎏×6袋' value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
-            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>重量(g)</label><input type='text' placeholder='5000' value={form.weight_g} onChange={e => setForm(f => ({ ...f, weight_g: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
             <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>単価</label><input type='text' placeholder='0' value={form.price_per_100g} onChange={e => setForm(f => ({ ...f, price_per_100g: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
