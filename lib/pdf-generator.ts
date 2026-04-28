@@ -9,7 +9,7 @@ export interface PdfOrderItem {
   amount: number | null
   notes: string | null
   sort_order: number
-  products: { name: string; code: string; unit: string } | null
+  products: { name: string; code: string; category: string } | null
 }
 
 export interface PdfOrder {
@@ -30,7 +30,7 @@ export type PdfCompany = {
 } | null
 
 export function openPrintWindow(htmlContent: string): void {
-  const blob = new Blob([htmlContent], { type: 'text/html; charset=utf-8' })
+  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const win = window.open(url, '_blank')
   if (win) {
@@ -48,9 +48,9 @@ export function buildOrderHtml(
   docType: DocType,
 ): string {
   const titles: Record<DocType, string> = {
-    order: 'Order (Hacchu-sho)',
-    delivery: 'Delivery (Nouhin-sho)',
-    provisional_delivery: 'Provisional Delivery',
+    order: '発注書',
+    delivery: '納品書',
+    provisional_delivery: '他屌仓納品書',
   }
   const title = titles[docType]
   const isOrder = docType === 'order'
@@ -66,17 +66,17 @@ export function buildOrderHtml(
     const cells = [
       item.products ? item.products.name : '-',
       fmt(item.quantity),
-      item.products ? item.products.unit : '',
+      item.products ? (item.products.category || '') : '',
       item.unit_price ? yen + fmt(item.unit_price) : '-',
-      item.amount ? yen + fmt(item.amount) : '-',
+      item.amount ? yen + fmt(item.amount) : (item.unit_price && item.quantity ? yen + fmt(item.unit_price * item.quantity) : '-'),
     ]
     return '<tr>' + cells.map(c => '<td>' + c + '</td>').join('') + '</tr>'
   }).join('')
 
   const toName = billedTo ? billedTo.name : ''
-  const toPhone = billedTo && billedTo.phone ? billedTo.phone : ''
+  const toAddr = billedTo?.address || ''
   const fromName = billedFrom ? billedFrom.name : ''
-  const fromPhone = billedFrom && billedFrom.phone ? billedFrom.phone : ''
+  const fromPhone = billedFrom?.phone || ''
 
   const parts = [
     '<!DOCTYPE html>',
@@ -84,20 +84,19 @@ export function buildOrderHtml(
     '<head>',
     '<meta charset="UTF-8">',
     '<title>' + title + '</title>',
-    '<style>body{font-family:sans-serif;font-size:10pt;margin:20px}</style>',
+    '<style>body{font-family:sans-serif;font-size:10pt;margin:20px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ccc;padding:4px 8px} th{background:#eee} .header{display:flex;justify-content:space-between;margin-bottom:16px} .title{font-size:20pt;font-weight:bold;text-align:center;margin-bottom:12px} .total{text-align:right;font-weight:bold;margin-top:8px}</style>',
     '</head>',
     '<body>',
-    '<h1 style="text-align:center;border-bottom:2px solid #1d4ed8;padding-bottom:6px">' + title + '</h1>',
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0">',
-    '<div style="border:1px solid #ccc;padding:8px"><div style="font-size:8pt">To</div><div style="font-size:12pt;font-weight:bold">' + toName + '</div>' + (toPhone ? '<div>TEL: ' + toPhone + '</div>' : '') + '</div>',
-    '<div style="border:1px solid #ccc;padding:8px"><div style="font-size:8pt">From</div><div style="font-size:12pt;font-weight:bold">' + fromName + '</div>' + (fromPhone ? '<div>TEL: ' + fromPhone + '</div>' : '') + '</div>',
+    '<div class="title">' + title + '</div>',
+    '<div class="header">',
+    '<div><div>宛先: <strong>' + toName + '</strong></div><div>' + toAddr + '</div></div>',
+    '<div><div>Order: <strong>' + order.order_no + '</strong></div><div>Date: ' + fmtD(order.order_date) + '</div><div>Delivery: ' + fmtD(order.delivery_date) + '</div><div>発行: ' + fromName + ' ' + fromPhone + '</div></div>',
     '</div>',
-    '<div style="background:#f5f5f5;padding:8px;margin-bottom:12px;font-size:9pt">Order: <b>' + order.order_no + '</b> Date: ' + fmtD(order.order_date) + ' Delivery: ' + fmtD(order.delivery_date) + '</div>',
-    '<table style="width:100%;border-collapse:collapse">',
-    '<thead><tr style="background:#1d4ed8;color:#fff"><th>Item</th><th>Qty</th><th>Unit</th><th>Price</th><th>Amount</th></tr></thead>',
+    '<table>',
+    '<thead><tr><th>商品名</th><th>数量</th><th>单位</th><th>単価</th><th>金額</th></tr></thead>',
     '<tbody>' + rows + '</tbody>',
     '</table>',
-    '<div style="text-align:right;font-size:12pt;font-weight:bold;margin-top:8px;border-top:2px solid #333;padding-top:4px">Total: ' + yen + fmt(total) + '</div>',
+    '<div class="total">Total: ' + yen + fmt(total) + '</div>',
     '</body></html>',
   ]
   return parts.join('')
