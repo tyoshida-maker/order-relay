@@ -31,9 +31,9 @@ type OrderRow = {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  ordered: 'çºæ³¨åä»', approved: 'æ¿èªæ¸', sent_to_shipper: 'åºè·ä¾é ¼',
-  preparing: 'åºè·æºåä¸­', in_transit: 'ééä¸­', shipped: 'åºè·æ¸',
-  delivered: 'ç´åå®äº', delayed: 'éå»¶ä¸­', cancelled: 'ï½·ï½¬ï¾ï½¾ï¾',
+  ordered: '発注受付', approved: '承認済', sent_to_shipper: '出荷依頼',
+  preparing: '出荷準備中', in_transit: '配送中', shipped: '出荷済',
+  delivered: '納品完了', delayed: '遅延中', cancelled: 'ｷｬﾝｾﾙ',
 }
 const STATUS_COLOR: Record<string, string> = {
   ordered: 'bg-gray-100 text-gray-600',
@@ -47,7 +47,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 function fmt(dt: string | null) {
-  if (!dt) return 'â'
+  if (!dt) return '―'
   const d = new Date(dt)
   return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')
 }
@@ -108,30 +108,30 @@ export default function TrackingDashboard() {
   return (
     <div className="flex gap-4 min-h-screen bg-slate-50 -mx-4 -my-6 px-4 py-4">
 
-      {/* å·¦ã¡ã¤ã³ */}
+      {/* 左メイン */}
       <div className="flex-1 min-w-0 space-y-4">
 
-        {/* ãããã¼ */}
+        {/* ヘッダー */}
         <div className="bg-white rounded-xl border px-5 py-3 flex items-center justify-between">
           <div>
-            <span className="text-xs font-semibold text-blue-600">ééããã·ã¥ãã¼ãï¼å¨ä½ç£è¦ï¼</span>
-            <span className="ml-3 text-xs text-gray-400">æçµæ´æ°: {lastUpdated}</span>
-            <button onClick={load} className="ml-2 text-xs text-blue-500 hover:underline">â» æ´æ°</button>
+            <span className="text-xs font-semibold text-blue-600">配送ダッシュボード（全体監視）</span>
+            <span className="ml-3 text-xs text-gray-400">最終更新: {lastUpdated}</span>
+            <button onClick={load} className="ml-2 text-xs text-blue-500 hover:underline">↻ 更新</button>
           </div>
           <Link href="/tracking/new"
             className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-700 font-medium">
-            ï¼ åºè·ç»é²
+            ＋ 出荷登録
           </Link>
         </div>
 
-        {/* KPIã«ã¼ã */}
+        {/* KPIカード */}
         <div className="grid grid-cols-5 gap-3">
           {[
-            { label: 'æ¬æ¥åºè·ä»¶æ°', value: metrics.total, unit: 'ä»¶', color: 'text-blue-700', bg: 'bg-blue-50', icon: 'ð¦' },
-            { label: 'ééä¸­ä»¶æ°', value: metrics.inTransit, unit: 'ä»¶', color: 'text-cyan-700', bg: 'bg-cyan-50', icon: 'ð' },
-            { label: 'æ¬æ¥ç´åäºå®', value: metrics.todayDelivery, unit: 'ä»¶', color: 'text-orange-600', bg: 'bg-orange-50', icon: 'ð' },
-            { label: 'éå»¶ä»¶æ°', value: metrics.delayed, unit: 'ä»¶', color: metrics.delayed > 0 ? 'text-red-600' : 'text-gray-400', bg: metrics.delayed > 0 ? 'bg-red-50' : 'bg-gray-50', icon: metrics.delayed > 0 ? 'â ï¸' : 'â' },
-            { label: 'æªåºè·ä»¶æ°', value: metrics.noShipment, unit: 'ä»¶', color: metrics.noShipment > 0 ? 'text-yellow-700' : 'text-gray-400', bg: metrics.noShipment > 0 ? 'bg-yellow-50' : 'bg-gray-50', icon: 'ð' },
+            { label: '本日出荷件数', value: metrics.total, unit: '件', color: 'text-blue-700', bg: 'bg-blue-50', icon: '📦' },
+            { label: '配送中件数', value: metrics.inTransit, unit: '件', color: 'text-cyan-700', bg: 'bg-cyan-50', icon: '🚚' },
+            { label: '本日納品予定', value: metrics.todayDelivery, unit: '件', color: 'text-orange-600', bg: 'bg-orange-50', icon: '📅' },
+            { label: '遅延件数', value: metrics.delayed, unit: '件', color: metrics.delayed > 0 ? 'text-red-600' : 'text-gray-400', bg: metrics.delayed > 0 ? 'bg-red-50' : 'bg-gray-50', icon: metrics.delayed > 0 ? '⚠️' : '✓' },
+            { label: '未出荷件数', value: metrics.noShipment, unit: '件', color: metrics.noShipment > 0 ? 'text-yellow-700' : 'text-gray-400', bg: metrics.noShipment > 0 ? 'bg-yellow-50' : 'bg-gray-50', icon: '📋' },
           ].map(k => (
             <div key={k.label} className={`${k.bg} rounded-xl border p-3`}>
               <div className="text-lg mb-0.5">{k.icon}</div>
@@ -141,21 +141,21 @@ export default function TrackingDashboard() {
           ))}
         </div>
 
-        {/* æ¬æ¥ã®ç´åäºå®ä¸è¦§ */}
+        {/* 本日の納品予定一覧 */}
         <div className="bg-white rounded-xl border overflow-hidden">
           <div className="px-4 py-3 border-b flex items-center justify-between">
-            <div className="font-semibold text-sm text-gray-700">ð æ¬æ¥ã®ç´åäºå®ä¸è¦§ï¼ééäºå®æå»é ï¼</div>
-            <span className="text-xs text-gray-400">{todayOrders.length}ä»¶</span>
+            <div className="font-semibold text-sm text-gray-700">📅 本日の納品予定一覧（配達予定時刻順）</div>
+            <span className="text-xs text-gray-400">{todayOrders.length}件</span>
           </div>
           {loading ? (
-            <div className="text-center text-gray-400 py-8 text-sm">èª­ã¿è¾¼ã¿ä¸­...</div>
+            <div className="text-center text-gray-400 py-8 text-sm">読み込み中...</div>
           ) : todayOrders.length === 0 ? (
-            <div className="text-center text-gray-400 py-8 text-sm">æ¬æ¥ã®ééãã¼ã¿ãªã</div>
+            <div className="text-center text-gray-400 py-8 text-sm">本日の配送データなし</div>
           ) : (
             <table className="w-full text-xs">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  {['çºæ³¨No','åºèï¼çºæ³¨åï¼','åå','æ°é','ééç¤¾','è¿½è·¡çªå·','ééäºå®','ã¹ãã¼ã¿ã¹',''].map(h => (
+                  {['発注No','店舗（発注元）','商品','数量','配送社','追跡番号','配達予定','ステータス',''].map(h => (
                     <th key={h} className="text-left px-3 py-2.5 font-medium text-gray-500">{h}</th>
                   ))}
                 </tr>
@@ -171,31 +171,31 @@ export default function TrackingDashboard() {
                       className={`cursor-pointer hover:bg-blue-50 transition ${selectedId === o.id ? 'bg-blue-50' : ''} ${isDelayed ? 'bg-red-50 hover:bg-red-100' : ''}`}
                     >
                       <td className="px-3 py-2 font-mono">{o.order_no}</td>
-                      <td className="px-3 py-2">{o.companies?.short_name || o.companies?.name || 'â'}</td>
-                      <td className="px-3 py-2 max-w-[120px] truncate">{item?.products?.name || 'â'}</td>
-                      <td className="px-3 py-2">{item?.quantity ?? 'â'}</td>
-                      <td className="px-3 py-2">{ship?.carrier || 'â'}</td>
+                      <td className="px-3 py-2">{o.companies?.short_name || o.companies?.name || '―'}</td>
+                      <td className="px-3 py-2 max-w-[120px] truncate">{item?.products?.name || '―'}</td>
+                      <td className="px-3 py-2">{item?.quantity ?? '―'}</td>
+                      <td className="px-3 py-2">{ship?.carrier || '―'}</td>
                       <td className="px-3 py-2 font-mono">
                         {ship?.tracking_url ? (
                           <a href={ship.tracking_url} target="_blank" rel="noopener noreferrer"
                             className="text-blue-600 hover:underline" onClick={e => e.stopPropagation()}>
-                            {ship.tracking_number || 'â'}
+                            {ship.tracking_number || '―'}
                           </a>
-                        ) : ship?.tracking_number || 'â'}
+                        ) : ship?.tracking_number || '―'}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
-                        {ship?.estimated_from ? fmt(ship.estimated_from) + (ship.estimated_to ? 'ã' + new Date(ship.estimated_to).getHours() + ':' + String(new Date(ship.estimated_to).getMinutes()).padStart(2,'0') : '') : o.delivery_date || 'â'}
+                        {ship?.estimated_from ? fmt(ship.estimated_from) + (ship.estimated_to ? '〜' + new Date(ship.estimated_to).getHours() + ':' + String(new Date(ship.estimated_to).getMinutes()).padStart(2,'0') : '') : o.delivery_date || '―'}
                       </td>
                       <td className="px-3 py-2">
                         <span className={`px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[ship?.status || o.status] || 'bg-gray-100 text-gray-500'}`}>
-                          {isDelayed ? 'â ï¸éå»¶' : STATUS_LABEL[ship?.status || o.status] || ship?.status || o.status}
+                          {isDelayed ? '⚠️遅延' : STATUS_LABEL[ship?.status || o.status] || ship?.status || o.status}
                         </span>
                       </td>
                       <td className="px-3 py-2">
                         <Link href={`/tracking/${ship?.id || ''}`}
                           onClick={e => e.stopPropagation()}
                           className="text-blue-500 hover:underline whitespace-nowrap">
-                          {ship ? 'è©³ç´°' : 'åºè·ç»é²'}
+                          {ship ? '詳細' : '出荷登録'}
                         </Link>
                       </td>
                     </tr>
@@ -206,12 +206,12 @@ export default function TrackingDashboard() {
           )}
         </div>
 
-        {/* éå»¶ã¢ã©ã¼ã */}
+        {/* 遅延アラート */}
         {delayedOrders.length > 0 && (
           <div className="bg-white rounded-xl border border-red-200 overflow-hidden">
             <div className="px-4 py-3 bg-red-50 border-b border-red-200 flex items-center gap-2">
-              <span className="text-red-600 font-semibold text-sm">â ï¸ éå»¶ã¢ã©ã¼ã</span>
-              <span className="text-xs text-red-500">{delayedOrders.length}ä»¶ã®éééå»¶ãçºçãã¦ãã¾ã</span>
+              <span className="text-red-600 font-semibold text-sm">⚠️ 遅延アラート</span>
+              <span className="text-xs text-red-500">{delayedOrders.length}件の配送遅延が発生しています</span>
             </div>
             <div className="divide-y">
               {delayedOrders.map(o => {
@@ -221,14 +221,14 @@ export default function TrackingDashboard() {
                   <div key={o.id} className="px-4 py-3 flex items-start justify-between gap-4">
                     <div className="space-y-0.5">
                       <div className="text-xs font-mono text-gray-500">{o.order_no}</div>
-                      <div className="text-sm font-medium">{o.companies?.name} â {item?.products?.name}</div>
-                      <div className="text-xs text-red-600">ééäºå®: {fmt(ship?.estimated_from || null)} {ship?.estimated_to ? 'ã '+fmt(ship.estimated_to) : ''}</div>
+                      <div className="text-sm font-medium">{o.companies?.name} — {item?.products?.name}</div>
+                      <div className="text-xs text-red-600">配達予定: {fmt(ship?.estimated_from || null)} {ship?.estimated_to ? '〜 '+fmt(ship.estimated_to) : ''}</div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       {ship && (
                         <Link href={`/tracking/${ship.id}`}
                           className="text-xs bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700">
-                          éå»¶åå®¹ãæ´æ°ã»åéç¥
+                          遅延内容を更新・再通知
                         </Link>
                       )}
                     </div>
@@ -239,29 +239,29 @@ export default function TrackingDashboard() {
           </div>
         )}
 
-        {/* åç¤¾ã®è¦ç¹ */}
+        {/* 各社の視点 */}
         <div className="bg-white rounded-xl border overflow-hidden">
-          <div className="px-4 py-3 border-b font-semibold text-sm text-gray-700">ð åç¤¾ã®è¦ç¹ï¼å¿è¦ãªæå ±ãè¦ããï¼</div>
+          <div className="px-4 py-3 border-b font-semibold text-sm text-gray-700">📊 各社の視点（必要な情報が見える）</div>
           <div className="grid grid-cols-3 gap-0 divide-x">
             {[
               {
-                company: 'ã¨ããã¤ããï¼åºèï¼', color: 'bg-orange-50',
-                items: ['èªåã®æ³¨æã»ééç¶æ³ã»çè·äºå®', 'éå»¶æå ±ã®ã¿'],
+                company: 'とりもつえん（店舗）', color: 'bg-orange-50',
+                items: ['自分の注文・配送状況・着荷予定', '遅延情報のみ'],
               },
               {
-                company: 'ã¼ã­ããã¯ãã¡ã¼ã ', color: 'bg-blue-50',
-                items: ['å¨ä½ã®å£²å£²ã»ééç¶æ³ã»éå»¶ç¶æ³', 'åºè·ç®¡ç'],
+                company: 'ゼロテックファーム', color: 'bg-blue-50',
+                items: ['全体の売売・配送状況・遅延状況', '出荷管理'],
               },
               {
-                company: 'ä¹å·é£ç³§ï¼åºè·ï¼', color: 'bg-green-50',
-                items: ['èªç¤¾åºåã®æ³¨æã»åºè·ç»é²ã»è¿½è·¡ç¶æ³'],
+                company: '九州食糧（出荷）', color: 'bg-green-50',
+                items: ['自社出分の注文・出荷登録・追跡状況'],
               },
             ].map(c => (
               <div key={c.company} className={`${c.color} p-4`}>
                 <div className="text-xs font-semibold text-gray-700 mb-2">{c.company}</div>
                 {c.items.map(i => (
                   <div key={i} className="text-xs text-gray-600 flex gap-1 mb-1">
-                    <span className="text-green-500 flex-shrink-0">â</span>{i}
+                    <span className="text-green-500 flex-shrink-0">✓</span>{i}
                   </div>
                 ))}
               </div>
@@ -269,23 +269,23 @@ export default function TrackingDashboard() {
           </div>
         </div>
 
-        {/* åãåããåæ¸å¹æ */}
+        {/* 問い合わせ削減効果 */}
         <div className="bg-white rounded-xl border p-4">
-          <div className="font-semibold text-sm text-gray-700 mb-3">ð¬ åãåããåæ¸å¹æï¼å°å¥å¹æï¼</div>
+          <div className="font-semibold text-sm text-gray-700 mb-3">💬 問い合わせ削減効果（導入効果）</div>
           <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
             <div>
-              <div className="font-medium text-gray-700 mb-1">å°å¥åï¼å¤éä¼è¨ï¼</div>
+              <div className="font-medium text-gray-700 mb-1">導入前（多重伝言）</div>
               <div className="space-y-1 text-gray-500">
-                <div>åºè âãã¾ã å±ããªãâ¦ã</div>
-                <div>â åµæªå®¶ã«é£çµ¡ â ã¼ã­ããã¯ã«é£çµ¡ â ä¹å·é£ç³§ã«é£çµ¡</div>
+                <div>店舗 →「まだ届かない…」</div>
+                <div>→ 創未家に連絡 → ゼロテックに連絡 → 九州食糧に連絡</div>
               </div>
             </div>
             <div>
-              <div className="font-medium text-gray-700 mb-1">å°å¥å¾ï¼èªå·±è§£æ±ºï¼</div>
+              <div className="font-medium text-gray-700 mb-1">導入後（自己解決）</div>
               <div className="space-y-1">
-                <div className="text-green-600 font-medium">åºè â è¿½è·¡ãã¼ã¸ãè¦ã â è§£æ±ºï¼30ç§ï¼</div>
-                <div className="text-gray-500">åãåããä»¶æ°: <span className="text-green-600 font-bold">80ã90%åæ¸</span></div>
-                <div className="text-gray-500">å¯¾å¿æé: æ40ã60æéåæ¸</div>
+                <div className="text-green-600 font-medium">店舗 → 追跡ページを見る → 解決（30秒）</div>
+                <div className="text-gray-500">問い合わせ件数: <span className="text-green-600 font-bold">80〜90%削減</span></div>
+                <div className="text-gray-500">対応時間: 月40〜60時間削減</div>
               </div>
             </div>
           </div>
@@ -293,12 +293,12 @@ export default function TrackingDashboard() {
 
       </div>
 
-      {/* å³ããã«ï¼åºèå¥ééè¿½è·¡ç»é¢ */}
+      {/* 右パネル：店舗別配送追跡画面 */}
       <div className="w-80 flex-shrink-0 space-y-3">
         <div className="bg-white rounded-xl border overflow-hidden">
           <div className="bg-blue-700 text-white px-4 py-3 text-sm font-semibold">
-            ðª åºèå¥ï¼ééè¿½è·¡ç»é¢
-            <div className="text-xs font-normal text-blue-200 mt-0.5">ã¹ãã/PCå±éã¤ã¡ã¼ã¸</div>
+            🏪 店舗別：配送追跡画面
+            <div className="text-xs font-normal text-blue-200 mt-0.5">スマホ/PC共通イメージ</div>
           </div>
 
           {selected ? (() => {
@@ -308,40 +308,40 @@ export default function TrackingDashboard() {
             const isDelayed = ship?.status === 'delayed' || ship?.delayed
             return (
               <div className="p-4 space-y-3">
-                {/* æ³¨ææå ± */}
+                {/* 注文情報 */}
                 <div>
-                  <div className="text-xs text-gray-400 mb-1">æ³¨ææå ±</div>
+                  <div className="text-xs text-gray-400 mb-1">注文情報</div>
                   <div className="text-xs space-y-1">
-                    <div><span className="text-gray-500">æ³¨æNo.</span> <span className="font-mono font-medium">{selected.order_no}</span></div>
-                    <div><span className="text-gray-500">æ³¨ææ¥</span> {selected.order_date}</div>
-                    <div><span className="text-gray-500">åå</span> {item?.products?.name || 'â'} Ã {item?.quantity}æ¬</div>
-                    <div><span className="text-gray-500">çºæ³¨å</span> {selected.companies?.name || 'â'}</div>
+                    <div><span className="text-gray-500">注文No.</span> <span className="font-mono font-medium">{selected.order_no}</span></div>
+                    <div><span className="text-gray-500">注文日</span> {selected.order_date}</div>
+                    <div><span className="text-gray-500">商品</span> {item?.products?.name || '―'} × {item?.quantity}本</div>
+                    <div><span className="text-gray-500">発注元</span> {selected.companies?.name || '―'}</div>
                   </div>
                 </div>
 
-                {/* ç¾å¨ã®ééç¶æ³ */}
+                {/* 現在の配送状況 */}
                 <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="text-xs text-gray-500 mb-1">ç¾å¨ã®ééç¶æ³</div>
+                  <div className="text-xs text-gray-500 mb-1">現在の配送状況</div>
                   {ship ? (
                     <div>
                       <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-sm font-bold mb-2 ${isDelayed ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                        <span>{isDelayed ? 'â ï¸' : 'ð'}</span>
-                        <span>{isDelayed ? 'éå»¶ä¸­' : STATUS_LABEL[ship.status] || ship.status}</span>
+                        <span>{isDelayed ? '⚠️' : '🚚'}</span>
+                        <span>{isDelayed ? '遅延中' : STATUS_LABEL[ship.status] || ship.status}</span>
                       </div>
                       {ship.estimated_from && (
                         <div>
-                          <div className="text-xs text-gray-500">ééäºå®æé</div>
+                          <div className="text-xs text-gray-500">配達予定時間</div>
                           <div className="text-sm font-bold text-blue-700">
-                            {fmt(ship.estimated_from)}{ship.estimated_to ? ' ã ' + new Date(ship.estimated_to).getHours() + ':' + String(new Date(ship.estimated_to).getMinutes()).padStart(2,'0') : ''}
+                            {fmt(ship.estimated_from)}{ship.estimated_to ? ' 〜 ' + new Date(ship.estimated_to).getHours() + ':' + String(new Date(ship.estimated_to).getMinutes()).padStart(2,'0') : ''}
                           </div>
-                          {isDelayed && <div className="text-xs text-red-500 mt-0.5">â»å®éã®ééã¯ããããéããå¯è½æ§ãããã¾ã</div>}
+                          {isDelayed && <div className="text-xs text-red-500 mt-0.5">※実際の配達はこれより遅れる可能性があります</div>}
                         </div>
                       )}
                       <div className="mt-2 text-xs">
-                        <span className="text-gray-500">ééä¼ç¤¾:</span> <span>{ship.carrier}</span>
+                        <span className="text-gray-500">配送会社:</span> <span>{ship.carrier}</span>
                       </div>
                       <div className="text-xs">
-                        <span className="text-gray-500">è¿½è·¡çªå·:</span>{' '}
+                        <span className="text-gray-500">追跡番号:</span>{' '}
                         {ship.tracking_url ? (
                           <a href={ship.tracking_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-mono">{ship.tracking_number}</a>
                         ) : <span className="font-mono">{ship.tracking_number}</span>}
@@ -349,19 +349,19 @@ export default function TrackingDashboard() {
                       {ship.tracking_url && (
                         <a href={ship.tracking_url} target="_blank" rel="noopener noreferrer"
                           className="mt-2 block text-center text-xs bg-white border border-blue-300 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-50">
-                          è¿½è·¡ãã¼ã¸ãéã â
+                          追跡ページを開く ↗
                         </a>
                       )}
                     </div>
                   ) : (
-                    <div className="text-xs text-gray-400">åºè·ç»é²å¾ã¡</div>
+                    <div className="text-xs text-gray-400">出荷登録待ち</div>
                   )}
                 </div>
 
-                {/* ã¿ã¤ã ã©ã¤ã³ */}
+                {/* タイムライン */}
                 {events.length > 0 && (
                   <div>
-                    <div className="text-xs font-medium text-gray-600 mb-2">ééç¶æ³ã®è©³ç´°</div>
+                    <div className="text-xs font-medium text-gray-600 mb-2">配送状況の詳細</div>
                     <div className="space-y-2">
                       {events.slice(-4).map((ev, i) => (
                         <div key={i} className="flex gap-2 text-xs">
@@ -380,39 +380,39 @@ export default function TrackingDashboard() {
                   </div>
                 )}
 
-                {/* ãç¥ããè¨­å® */}
+                {/* お知らせ設定 */}
                 <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs text-green-700">
-                  ð ééç¶æ³ã®å¤åããé£çµ¡ã«LINEã§ãç¥ãããåãåãã¾ãã
+                  🔔 配送状況の変化やご連絡にLINEでお知らせを受け取れます。
                 </div>
 
                 <div className="flex gap-2">
                   {ship && (
                     <Link href={`/tracking/${ship.id}`}
                       className="flex-1 text-center text-xs bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
-                      è©³ç´°ã»ã¹ãã¼ã¿ã¹æ´æ°
+                      詳細・ステータス更新
                     </Link>
                   )}
                   {!ship && (
                     <Link href={`/tracking/new?order_id=${selected.id}`}
                       className="flex-1 text-center text-xs bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600">
-                      åºè·ç»é²ãã
+                      出荷登録する
                     </Link>
                   )}
                 </div>
               </div>
             )
           })() : (
-            <div className="p-4 text-sm text-gray-400 text-center">çºæ³¨ãé¸æãã¦ãã ãã</div>
+            <div className="p-4 text-sm text-gray-400 text-center">発注を選択してください</div>
           )}
         </div>
 
-        {/* ã·ã§ã¼ãã«ãã */}
+        {/* ショートカット */}
         <div className="bg-white rounded-xl border p-3 space-y-2">
-          <div className="text-xs font-semibold text-gray-600">ã·ã§ã¼ãã«ãã</div>
+          <div className="text-xs font-semibold text-gray-600">ショートカット</div>
           {[
-            { href: '/orders/new', label: 'ð çºæ³¨å¥å', color: 'bg-orange-50 text-orange-700 border-orange-200' },
-            { href: '/tracking/new', label: 'ð åºè·ç»é²', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-            { href: '/tracking', label: 'ð è¿½è·¡çªå·æ¤ç´¢', color: 'bg-gray-50 text-gray-700 border-gray-200' },
+            { href: '/orders/new', label: '📝 発注入力', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+            { href: '/tracking/new', label: '🚚 出荷登録', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+            { href: '/tracking', label: '🔍 追跡番号検索', color: 'bg-gray-50 text-gray-700 border-gray-200' },
           ].map(s => (
             <Link key={s.href} href={s.href}
               className={`block text-xs border rounded-lg px-3 py-2 hover:opacity-80 ${s.color}`}>
