@@ -1,9 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-
-const supabase = createClientComponentClient()
+import { supabase } from '@/lib/supabase'
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
