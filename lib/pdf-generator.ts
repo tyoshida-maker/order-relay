@@ -23,22 +23,102 @@ export interface PdfOrder {
 
 export type PdfCompany = {
   name: string
-  address?: string | null
-  phone?: string | null
-  fax?: string | null
-  email?: string | null
-} | null
+  address?: string
+  phone?: string
+}
 
+export interface GenerateOrderPdfOptions {
+  type: DocType
+  orderNo: string
+  orderDate: string
+  deliveryDate: string
+  toCompany: PdfCompany
+  fromCompany: PdfCompany
+  items: {
+    name: string
+    code: string
+    category: string
+    quantity: number
+    unit_price: number
+    amount: number
+  }[]
+}
+
+export function generateOrderPdf(opts: GenerateOrderPdfOptions): void {
+  const titles: Record<DocType, string> = {
+    order: '発注書',
+    delivery: '納品書',
+    provisional_delivery: '他屋倉納品書',
+  }
+  const title = titles[opts.type]
+  const yen = '¥'
+  const fmt = (n: number) => n.toLocaleString()
+  const total = opts.items.reduce((s, i) => s + i.amount, 0)
+
+  const rows = opts.items.map(item => {
+    return '<tr>' +
+      '<td>' + item.name + '</td>' +
+      '<td style="text-align:right">' + fmt(item.quantity) + '</td>' +
+      '<td>' + item.category + '</td>' +
+      '<td style="text-align:right">' + yen + fmt(item.unit_price) + '</td>' +
+      '<td style="text-align:right">' + yen + fmt(item.amount) + '</td>' +
+      '</tr>'
+  }).join('')
+
+  const html = [
+    '<!DOCTYPE html>',
+    '<html lang="ja">',
+    '<head>',
+    '<meta charset="UTF-8">',
+    '<title>' + title + '</title>',
+    '<style>',
+    'body { font-family: sans-serif; font-size: 10pt; margin: 20px }',
+    'table { width: 100%; border-collapse: collapse }',
+    'th, td { border: 1px solid #ccc; padding: 4px 8px }',
+    'th { background: #eee }',
+    '.header { display: flex; justify-content: space-between; margin-bottom: 16px }',
+    '.title { font-size: 20pt; font-weight: bold; text-align: center; margin-bottom: 12px }',
+    '.total { text-align: right; font-weight: bold; margin-top: 8px }',
+    '.meta { margin-bottom: 12px; font-size: 9pt; color: #555 }',
+    '</style>',
+    '</head>',
+    '<body>',
+    '<div class="title">' + title + '</div>',
+    '<div class="header">',
+    '<div>',
+    '<div>宛先: <strong>' + opts.toCompany.name + '</strong></div>',
+    '</div>',
+    '<div>',
+    '<div>発注番号: <strong>' + opts.orderNo + '</strong></div>',
+    '<div>発注日: ' + opts.orderDate.replace(/-/g, '/') + '</div>',
+    '<div>納品希望日: ' + (opts.deliveryDate ? opts.deliveryDate.replace(/-/g, '/') : '-') + '</div>',
+    '<div>発行: ' + opts.fromCompany.name + '</div>',
+    '</div>',
+    '</div>',
+    '<table>',
+    '<thead><tr>',
+    '<th>商品名</th>',
+    '<th>数量</th>',
+    '<th>単位</th>',
+    '<th>単価</th>',
+    '<th>金額</th>',
+    '</tr></thead>',
+    '<tbody>' + rows + '</tbody>',
+    '</table>',
+    '<div class="total">合計: ' + yen + fmt(total) + '</div>',
+    '</body></html>',
+  ].join('')
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank')
+}
+
+// Legacy function for backward compatibility
 export function openPrintWindow(htmlContent: string): void {
   const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)
-  const win = window.open(url, '_blank')
-  if (win) {
-    win.onload = () => {
-      setTimeout(() => { win.print() }, 500)
-    }
-  }
-  setTimeout(() => URL.revokeObjectURL(url), 60000)
+  window.open(url, '_blank')
 }
 
 export function buildOrderHtml(
@@ -50,7 +130,7 @@ export function buildOrderHtml(
   const titles: Record<DocType, string> = {
     order: '発注書',
     delivery: '納品書',
-    provisional_delivery: '他屌仓納品書',
+    provisional_delivery: '他屋倉納品書',
   }
   const title = titles[docType]
   const isOrder = docType === 'order'
@@ -60,7 +140,7 @@ export function buildOrderHtml(
   const total = items.reduce((s, i) => s + (i.amount || 0), 0)
   const fmt = (n: number | null) => n != null ? n.toLocaleString() : '-'
   const fmtD = (s: string | null) => s ? s.replace(/-/g, '/') : '-'
-  const yen = '\u00a5'
+  const yen = '¥'
 
   const rows = items.map((item) => {
     const cells = [
@@ -90,13 +170,13 @@ export function buildOrderHtml(
     '<div class="title">' + title + '</div>',
     '<div class="header">',
     '<div><div>宛先: <strong>' + toName + '</strong></div><div>' + toAddr + '</div></div>',
-    '<div><div>Order: <strong>' + order.order_no + '</strong></div><div>Date: ' + fmtD(order.order_date) + '</div><div>Delivery: ' + fmtD(order.delivery_date) + '</div><div>発行: ' + fromName + ' ' + fromPhone + '</div></div>',
+    '<div><div>発注番号: <strong>' + order.order_no + '</strong></div><div>発注日: ' + fmtD(order.order_date) + '</div><div>納品希望日: ' + fmtD(order.delivery_date) + '</div><div>発行: ' + fromName + ' ' + fromPhone + '</div></div>',
     '</div>',
     '<table>',
-    '<thead><tr><th>商品名</th><th>数量</th><th>单位</th><th>単価</th><th>金額</th></tr></thead>',
+    '<thead><tr><th>商品名</th><th>数量</th><th>単位</th><th>単価</th><th>金額</th></tr></thead>',
     '<tbody>' + rows + '</tbody>',
     '</table>',
-    '<div class="total">Total: ' + yen + fmt(total) + '</div>',
+    '<div class="total">合計: ' + yen + fmt(total) + '</div>',
     '</body></html>',
   ]
   return parts.join('')
