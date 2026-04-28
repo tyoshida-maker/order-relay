@@ -78,6 +78,34 @@ export default function NewOrderPage() {
     }))
     const { error: itemError } = await supabase.from('order_items').insert(validItems)
     if (itemError) { setMsg('エラー: ' + itemError.message); setSaving(false); return }
+    // メール通知送信
+    try {
+      const selectedFlow = flows.find(f => f.id === form.flow_id)
+      const fromCompany = companies.find(c => c.id === form.from_company_id)
+      const flowCompanies = selectedFlow?.steps
+        ? selectedFlow.steps.map((s: any) => companies.find(c => c.id === s.company_id)).filter(Boolean)
+        : []
+      const emailItems = validItems.map(vi => {
+        const prod = products.find(p => p.id === vi.product_id)
+        return { product_name: prod?.name || '', quantity: vi.quantity, unit: prod?.unit || '' }
+      })
+      await fetch('/api/send-order-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_no,
+          order_date: form.order_date,
+          delivery_date: form.delivery_date,
+          from_company: fromCompany?.name || '',
+          flow_name: selectedFlow?.name || '',
+          flow_companies: flowCompanies.map((c: any) => ({ name: c.name, email: c.email })),
+          items: emailItems,
+          notes: form.notes
+        })
+      })
+    } catch (e) {
+      console.error('Email send error:', e)
+    }
     router.push('/orders/' + orderData.id)
   }
 
