@@ -1,5 +1,3 @@
-'use client'
-
 export type DocType = 'order' | 'delivery' | 'provisional_delivery'
 
 export interface PdfOrderItem {
