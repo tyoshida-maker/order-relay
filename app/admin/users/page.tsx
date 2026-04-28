@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { UserProfile, Company } from '@/lib/supabase'
 
+const TBL = 'or_user_profiles'
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
@@ -13,14 +15,12 @@ export default function AdminUsersPage() {
   const [msg, setMsg] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
 
-  useEffect(() => {
-    checkAdminAndLoad()
-  }, [])
+  useEffect(() => { checkAdminAndLoad() }, [])
 
   async function checkAdminAndLoad() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-    const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', session.user.id).single()
+    const { data: profile } = await supabase.from(TBL).select('*').eq('id', session.user.id).single()
     if (profile?.role !== 'admin') { setLoading(false); return }
     setIsAdmin(true)
     await loadData()
@@ -29,7 +29,7 @@ export default function AdminUsersPage() {
   async function loadData() {
     setLoading(true)
     const [ud, cd] = await Promise.all([
-      supabase.from('user_profiles').select('*').order('created_at'),
+      supabase.from(TBL).select('*').order('created_at'),
       supabase.from('companies').select('*').order('name')
     ])
     setUsers(ud.data || [])
@@ -54,10 +54,8 @@ export default function AdminUsersPage() {
   async function handleSave() {
     setMsg('')
     if (!form.email) return setMsg('メールアドレスは必須です')
-    
     if (editId) {
-      // 更新：プロファイルのみ更新
-      const { error } = await supabase.from('user_profiles').update({
+      const { error } = await supabase.from(TBL).update({
         display_name: form.display_name || null,
         role: form.role,
         company_id: form.company_id || null,
@@ -66,35 +64,29 @@ export default function AdminUsersPage() {
       if (error) return setMsg('エラー: ' + error.message)
       setMsg('更新しました')
     } else {
-      // 新規：Supabase Authでユーザー作成（admin API経由は不可のためインライン登録方式）
       if (!form.password) return setMsg('新規登録時はパスワードが必須です')
       const { data, error } = await supabase.auth.signUp({ email: form.email, password: form.password })
       if (error) return setMsg('エラー: ' + error.message)
       if (data.user) {
-        const { error: pe } = await supabase.from('user_profiles').insert({
-          id: data.user.id,
-          email: form.email,
-          display_name: form.display_name || null,
-          role: form.role,
-          company_id: form.company_id || null,
-          is_active: form.is_active
+        const { error: pe } = await supabase.from(TBL).insert({
+          id: data.user.id, email: form.email,
+          display_name: form.display_name || null, role: form.role,
+          company_id: form.company_id || null, is_active: form.is_active
         })
-        if (pe) return setMsg('プロファイル登録エラー: ' + pe.message)
+        if (pe) return setMsg('登録エラー: ' + pe.message)
       }
-      setMsg('登録しました。メール確認をお願いします。')
+      setMsg('登録しました。')
     }
     cancelForm()
     loadData()
   }
 
   async function toggleActive(u: UserProfile) {
-    await supabase.from('user_profiles').update({ is_active: !u.is_active }).eq('id', u.id)
+    await supabase.from(TBL).update({ is_active: !u.is_active }).eq('id', u.id)
     loadData()
   }
 
-  if (!isAdmin && !loading) {
-    return <div className="text-center py-16 text-gray-500">管理者のみアクセスできます</div>
-  }
+  if (!isAdmin && !loading) return <div className="text-center py-16 text-gray-500">管理者のみアクセスできます</div>
 
   return (
     <div>
@@ -103,7 +95,7 @@ export default function AdminUsersPage() {
         <button onClick={() => { cancelForm(); setShowForm(true) }} className="btn-primary">＋ ユーザー追加</button>
       </div>
       <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
-        🔑 管理者は全機能を利用できます。取引先は「発注内容」「配送状況」のみ表示されます。
+        🔑 管理者は全機能利用可。取引先は「発注内容」「配送状況」のみ表示。
       </div>
       {msg && <div className="mb-3 p-2 bg-blue-50 text-blue-700 rounded text-sm">{msg}</div>}
       {showForm && (
@@ -122,7 +114,7 @@ export default function AdminUsersPage() {
             )}
             <div>
               <label className="text-sm text-gray-600">表示名</label>
-              <input type="text" className="input-field mt-1" value={form.display_name} onChange={e => setForm({...form, display_name: e.target.value})} placeholder="例: 株式会社創未家 担当者" />
+              <input type="text" className="input-field mt-1" value={form.display_name} onChange={e => setForm({...form, display_name: e.target.value})} placeholder="株式会社山田商店 担当者" />
             </div>
             <div>
               <label className="text-sm text-gray-600">権限</label>
@@ -140,7 +132,7 @@ export default function AdminUsersPage() {
             </div>
             <div className="flex items-center gap-2 mt-4">
               <input type="checkbox" id="is_active" checked={form.is_active} onChange={e => setForm({...form, is_active: e.target.checked})} />
-              <label htmlFor="is_active" className="text-sm text-gray-600">アクティブ</label>
+              <label htmlFor="is_active" className="text-sm">アクティブ</label>
             </div>
           </div>
           <div className="mt-3 flex gap-2">
@@ -166,27 +158,17 @@ export default function AdminUsersPage() {
                 <tr key={u.id} className="border-b hover:bg-gray-50">
                   <td className="p-2">{u.email}</td>
                   <td className="p-2">{u.display_name || '-'}</td>
-                  <td className="p-2">
-                    <span className={`px-2 py-0.5 rounded text-xs ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-cyan-100 text-cyan-700'}`}>
-                      {u.role === 'admin' ? '管理者' : '取引先'}
-                    </span>
-                  </td>
+                  <td className="p-2"><span className={`px-2 py-0.5 rounded text-xs ${u.role==='admin'?'bg-purple-100 text-purple-700':'bg-cyan-100 text-cyan-700'}`}>{u.role==='admin'?'管理者':'取引先'}</span></td>
                   <td className="p-2 text-gray-600">{company?.name || '-'}</td>
-                  <td className="p-2">
-                    <span className={`px-2 py-0.5 rounded text-xs ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {u.is_active ? '有効' : '無効'}
-                    </span>
-                  </td>
+                  <td className="p-2"><span className={`px-2 py-0.5 rounded text-xs ${u.is_active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}`}>{u.is_active?'有効':'無効'}</span></td>
                   <td className="p-2 text-right">
-                    <button onClick={() => startEdit(u)} style={{ color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', marginRight: '0.75rem' }}>編集</button>
-                    <button onClick={() => toggleActive(u)} style={{ color: u.is_active ? '#ef4444' : '#22c55e', background: 'none', border: 'none', cursor: 'pointer' }}>
-                      {u.is_active ? '無効化' : '有効化'}
-                    </button>
+                    <button onClick={()=>startEdit(u)} style={{color:'#3b82f6',background:'none',border:'none',cursor:'pointer',marginRight:'0.75rem'}}>編集</button>
+                    <button onClick={()=>toggleActive(u)} style={{color:u.is_active?'#ef4444':'#22c55e',background:'none',border:'none',cursor:'pointer'}}>{u.is_active?'無効化':'有効化'}</button>
                   </td>
                 </tr>
               )
             })}
-            {users.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-gray-400">ユーザーが登録されていません</td></tr>}
+            {users.length===0&&<tr><td colSpan={6} className="p-4 text-center text-gray-400">ユーザーが登録されていません</td></tr>}
           </tbody>
         </table>
       )}
