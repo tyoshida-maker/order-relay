@@ -3,13 +3,25 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase, Company } from '@/lib/supabase'
 import Papa from 'papaparse'
 
+type FormData = {
+  name: string
+  short_name: string
+  postal_code: string
+  address: string
+  phone: string
+  fax: string
+  email: string
+  contact_person: string
+  notes: string
+}
+
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
-  const emptyForm = { name: '', short_name: '', postal_code: '', address: '', phone: '', fax: '', email: '', contact_person: '', notes: '' }
-  const [form, setForm] = useState(emptyForm)
+  const emptyForm: FormData = { name: '', short_name: '', postal_code: '', address: '', phone: '', fax: '', email: '', contact_person: '', notes: '' }
+  const [form, setForm] = useState<FormData>(emptyForm)
   const [msg, setMsg] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -91,11 +103,6 @@ export default function CompaniesPage() {
     })
   }
 
-  const inp = (k: keyof typeof emptyForm, v: string) => (
-    <input className='w-full border rounded px-3 py-2' value={v}
-      onChange={e => setForm(prev => ({ ...prev, [k]: e.target.value }))} />
-  )
-
   return (
     <div className='container mx-auto p-6'>
       <div className='flex justify-between items-center mb-6'>
@@ -119,41 +126,41 @@ export default function CompaniesPage() {
           <div className='grid grid-cols-2 gap-4'>
             <div>
               <label className='block text-sm font-medium mb-1'>会社名 <span className='text-red-500'>*</span></label>
-              {inp('name', form.name)}
+              <input className='w-full border rounded px-3 py-2' value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
               <label className='block text-sm font-medium mb-1'>略称</label>
-              {inp('short_name', form.short_name)}
+              <input className='w-full border rounded px-3 py-2' value={form.short_name} onChange={e => setForm({ ...form, short_name: e.target.value })} />
             </div>
             <div>
               <label className='block text-sm font-medium mb-1'>郵便番号</label>
-              {inp('postal_code', form.postal_code)}
+              <input className='w-full border rounded px-3 py-2' value={form.postal_code} onChange={e => setForm({ ...form, postal_code: e.target.value })} />
             </div>
             <div>
               <label className='block text-sm font-medium mb-1'>住所</label>
-              {inp('address', form.address)}
+              <input className='w-full border rounded px-3 py-2' value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
             </div>
             <div>
               <label className='block text-sm font-medium mb-1'>電話</label>
-              {inp('phone', form.phone)}
+              <input className='w-full border rounded px-3 py-2' value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
             </div>
             <div>
               <label className='block text-sm font-medium mb-1'>FAX</label>
-              {inp('fax', form.fax)}
+              <input className='w-full border rounded px-3 py-2' value={form.fax} onChange={e => setForm({ ...form, fax: e.target.value })} />
             </div>
             <div>
               <label className='block text-sm font-medium mb-1'>メール</label>
-              {inp('email', form.email)}
+              <input className='w-full border rounded px-3 py-2' value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
             </div>
             <div>
               <label className='block text-sm font-medium mb-1'>担当者</label>
-              {inp('contact_person', form.contact_person)}
+              <input className='w-full border rounded px-3 py-2' value={form.contact_person} onChange={e => setForm({ ...form, contact_person: e.target.value })} />
             </div>
           </div>
           <div className='mt-4'>
             <label className='block text-sm font-medium mb-1'>備考</label>
             <textarea className='w-full border rounded px-3 py-2' rows={2}
-              value={form.notes} onChange={e => setForm(prev => ({ ...prev, notes: e.target.value }))} />
+              value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
           </div>
           <div className='flex gap-2 mt-4'>
             <button onClick={save} className='bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>保存</button>
