@@ -15,6 +15,8 @@ type OrderWithItems = {
   from_company_id: string | null
   notes: string | null
   status: string
+  current_step: number | null
+  approved_steps: number[] | null
   order_items: Array<{
     id: string
     quantity: number
@@ -39,6 +41,8 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [genMsg, setGenMsg] = useState('')
+  const [approving, setApproving] = useState(false)
+  const [approveMsg, setApproveMsg] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -123,6 +127,30 @@ export default function OrderDetailPage() {
     setGenerating(false)
   }
 
+  const approveStep = async () => {
+    if (!order) return
+    setApproving(true)
+    setApproveMsg('')
+    try {
+      const res = await fetch('/api/approve-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: order.id })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setApproveMsg(data.is_completed ? '✅ 全ステップ承認完了！' : '✅ 承認しました。次のステップへ通知しました。')
+        // リロードして最新状態を取得
+        setTimeout(() => window.location.reload(), 1500)
+      } else {
+        setApproveMsg('エラー: ' + (data.error || '不明なエラー'))
+      }
+    } catch(e) {
+      setApproveMsg('通信エラーが発生しました')
+    }
+    setApproving(false)
+  }
+
   if (loading) return <div className='p-8 text-center'>読み込み中...</div>
   if (!order) return <div className='p-8 text-center'>発注が見つかりません</div>
 
@@ -173,19 +201,41 @@ export default function OrderDetailPage() {
         {order.flows && (
           <div className='bg-blue-50 border border-blue-200 rounded-lg p-4'>
             <h2 className='font-semibold mb-3'>商流: {order.flows.name}</h2>
-            <div className='flex items-center gap-2 flex-wrap'>
+            <div className='flex items-center gap-2 flex-wrap mb-3'>
               {steps.map((step, i) => {
                 const comp = findCompany(step.company_id)
+                const isApproved = (order.approved_steps || []).includes(i)
+                const isCurrent = (order.current_step ?? 0) === i && order.status !== 'completed'
                 return (
                   <span key={i} className='flex items-center gap-1'>
-                    <span className='bg-white border border-blue-300 text-blue-800 text-xs px-2 py-1 rounded'>
-                      {comp?.short_name || comp?.name || step.company_id}
+                    <span className={`text-xs px-2 py-1 rounded border ${
+                      isApproved ? 'bg-green-100 border-green-400 text-green-800' :
+                      isCurrent ? 'bg-yellow-100 border-yellow-400 text-yellow-800 font-bold' :
+                      'bg-white border-blue-300 text-blue-800'
+                    }`}>
+                      {isApproved ? '✅ ' : isCurrent ? '⏳ ' : ''}{comp?.short_name || comp?.name || step.company_id}
                     </span>
                     {i < steps.length - 1 && <span className='text-gray-400'>→</span>}
                   </span>
                 )
               })}
             </div>
+            {order.status === 'completed' ? (
+              <p className='text-green-700 font-bold text-sm'>🎉 全ステップ承認完了</p>
+            ) : (
+              <div className='mt-2'>
+                <p className='text-sm text-gray-600 mb-2'>
+                  現在のステップ: <span className='font-bold text-yellow-700'>
+                    {(() => { const s = steps[order.current_step ?? 0]; const c = s ? findCompany(s.company_id) : null; return c?.name || '不明'; })()}
+                  </span> が承認待ち
+                </p>
+                {approveMsg && <p className='text-sm mb-2 font-semibold text-green-700'>{approveMsg}</p>}
+                <button onClick={approveStep} disabled={approving}
+                  className='bg-blue-600 text-white text-sm px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50'>
+                  {approving ? '処理中...' : '✅ このステップを承認して次へ進める'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
