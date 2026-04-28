@@ -79,15 +79,12 @@ export function generateOrderPdf(opts: GenerateOrderPdfOptions): void {
     '.header { display: flex; justify-content: space-between; margin-bottom: 16px }',
     '.title { font-size: 20pt; font-weight: bold; text-align: center; margin-bottom: 12px }',
     '.total { text-align: right; font-weight: bold; margin-top: 8px }',
-    '.meta { margin-bottom: 12px; font-size: 9pt; color: #555 }',
     '</style>',
     '</head>',
     '<body>',
     '<div class="title">' + title + '</div>',
     '<div class="header">',
-    '<div>',
-    '<div>宛先: <strong>' + opts.toCompany.name + '</strong></div>',
-    '</div>',
+    '<div><div>宛先: <strong>' + opts.toCompany.name + '</strong></div></div>',
     '<div>',
     '<div>発注番号: <strong>' + opts.orderNo + '</strong></div>',
     '<div>発注日: ' + opts.orderDate.replace(/-/g, '/') + '</div>',
@@ -114,7 +111,6 @@ export function generateOrderPdf(opts: GenerateOrderPdfOptions): void {
   window.open(url, '_blank')
 }
 
-// Legacy function for backward compatibility
 export function openPrintWindow(htmlContent: string): void {
   const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)
