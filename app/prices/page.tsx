@@ -11,6 +11,7 @@ export default function PricesPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ company_id: '', product_id: '', unit_price: '', valid_from: new Date().toISOString().split('T')[0] })
   const [msg, setMsg] = useState('')
 
@@ -29,12 +30,44 @@ export default function PricesPage() {
 
   useEffect(() => { load() }, [])
 
+  function startEdit(p: PriceWithRelations) {
+    setForm({
+      company_id: p.company_id || '',
+      product_id: p.product_id || '',
+      unit_price: String(p.unit_price || ''),
+      valid_from: p.valid_from || new Date().toISOString().split('T')[0]
+    })
+    setEditId(p.id)
+    setShowForm(true)
+    setMsg('')
+  }
+
+  function cancelForm() {
+    setForm({ company_id: '', product_id: '', unit_price: '', valid_from: new Date().toISOString().split('T')[0] })
+    setEditId(null)
+    setShowForm(false)
+    setMsg('')
+  }
+
   const save = async () => {
     if (!form.company_id || !form.product_id || !form.unit_price) return setMsg('必須項目を入力してください')
-    const { error } = await supabase.from('price_rules').insert({ ...form, unit_price: Number(form.unit_price) })
+    let error
+    if (editId) {
+      const res = await supabase.from('price_rules').update({ ...form, unit_price: Number(form.unit_price) }).eq('id', editId)
+      error = res.error
+    } else {
+      const res = await supabase.from('price_rules').insert({ ...form, unit_price: Number(form.unit_price) })
+      error = res.error
+    }
     if (error) return setMsg('エラー: ' + error.message)
-    setMsg('登録しました')
-    setShowForm(false)
+    setMsg(editId ? '更新しました' : '登録しました')
+    cancelForm()
+    load()
+  }
+
+  const del = async (id: string) => {
+    if (!confirm('削除しますか？')) return
+    await supabase.from('price_rules').delete().eq('id', id)
     load()
   }
 
@@ -48,17 +81,17 @@ export default function PricesPage() {
         const rows = results.data as Record<string, string>[]
         let ok = 0
         for (const r of rows) {
-          const compName = r.company_name || r['取引先名'] || ''
-          const prodCode = r.product_code || r['商品コード'] || ''
-          const price = r.unit_price || r['単価'] || ''
+          const compName = r.company_name || ''
+          const prodCode = r.product_code || ''
+          const price = r.unit_price || ''
           if (!compName || !prodCode || !price) continue
           const comp = companies.find(c => c.name === compName || c.short_name === compName)
-          const prod = products.find(p => p.code === prodCode || p.name === prodCode)
+          const prod = products.find(p => p.jan_code === prodCode || p.name === prodCode)
           if (!comp || !prod) continue
           await supabase.from('price_rules').upsert({
             company_id: comp.id, product_id: prod.id,
             unit_price: Number(price),
-            valid_from: r.valid_from || r['有効開始日'] || new Date().toISOString().split('T')[0]
+            valid_from: r.valid_from || new Date().toISOString().split('T')[0]
           }, { onConflict: 'company_id,product_id,valid_from' })
           ok++
         }
@@ -74,16 +107,16 @@ export default function PricesPage() {
         <h1 className="text-2xl font-bold">価格管理</h1>
         <div className="flex gap-2">
           <label className="btn-secondary cursor-pointer">
-            CSV取込
+            CSVインポート
             <input type="file" accept=".csv" className="hidden" onChange={handleCsv} />
           </label>
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary">+ 新規登録</button>
+          <button onClick={() => { cancelForm(); setShowForm(true) }} className="btn-primary">+ 新規登録</button>
         </div>
       </div>
       {msg && <div className="mb-3 p-2 bg-blue-50 text-blue-700 rounded text-sm">{msg}</div>}
       {showForm && (
         <div className="bg-gray-50 border rounded-lg p-4 mb-4">
-          <h2 className="font-semibold mb-3">価格ルール登録</h2>
+          <h2 className="font-semibold mb-3">{editId ? '価格を編集' : '価格ルール登録'}</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm text-gray-600">取引先*</label>
@@ -110,7 +143,7 @@ export default function PricesPage() {
           </div>
           <div className="mt-3 flex gap-2">
             <button onClick={save} className="btn-primary">保存</button>
-            <button onClick={() => setShowForm(false)} className="btn-secondary">キャンセル</button>
+            <button onClick={cancelForm} className="btn-secondary">キャンセル</button>
           </div>
         </div>
       )}
@@ -121,6 +154,7 @@ export default function PricesPage() {
             <th className="p-2 text-left">商品</th>
             <th className="p-2 text-right">単価</th>
             <th className="p-2 text-left">有効開始日</th>
+            <th className="p-2"></th>
           </tr></thead>
           <tbody>
             {prices.map(p => (
@@ -129,9 +163,13 @@ export default function PricesPage() {
                 <td className="p-2">{p.products?.name}</td>
                 <td className="p-2 text-right font-mono">&yen;{p.unit_price.toLocaleString()}</td>
                 <td className="p-2 text-gray-500">{p.valid_from}</td>
+                <td className="p-2 text-right">
+                  <button onClick={() => startEdit(p)} style={{ color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', marginRight: '0.75rem' }}>編集</button>
+                  <button onClick={() => del(p.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>削除</button>
+                </td>
               </tr>
             ))}
-            {prices.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-gray-400">価格が登録されていません</td></tr>}
+            {prices.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-400">価格が登録されていません</td></tr>}
           </tbody>
         </table>
       )}
