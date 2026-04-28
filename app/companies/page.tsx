@@ -91,11 +91,9 @@ export default function CompaniesPage() {
     })
   }
 
-  const f = (k: keyof typeof form, label: string, required = false) => (
-    <div key={k}>
-      <label className='block text-sm font-medium mb-1'>{label}{required && <span className='text-red-500'>*</span>}</label>
-      <input className='w-full border rounded px-3 py-2' value={form[k]} onChange={e => setForm({...form, [k]: e.target.value})} />
-    </div>
+  const inp = (k: keyof typeof emptyForm, v: string) => (
+    <input className='w-full border rounded px-3 py-2' value={v}
+      onChange={e => setForm(prev => ({ ...prev, [k]: e.target.value }))} />
   )
 
   return (
@@ -107,7 +105,10 @@ export default function CompaniesPage() {
             CSV取込
             <input type='file' accept='.csv' ref={fileRef} onChange={handleCsv} className='hidden' />
           </label>
-          <button onClick={() => { setEditId(null); setForm(emptyForm); setMsg(''); setShowForm(true) }} className='bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>+ 新規登録</button>
+          <button onClick={() => { setEditId(null); setForm(emptyForm); setMsg(''); setShowForm(true) }}
+            className='bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>
+            + 新規登録
+          </button>
         </div>
       </div>
 
@@ -116,18 +117,43 @@ export default function CompaniesPage() {
           <h2 className='text-lg font-semibold mb-4'>{editId ? '取引先編集' : '取引先登録'}</h2>
           {msg && <p className='text-red-500 mb-3'>{msg}</p>}
           <div className='grid grid-cols-2 gap-4'>
-            {f('name', '会社名', true)}
-            {f('short_name', '略称')}
-            {f('postal_code', '郵便番号')}
-            {f('address', '住所')}
-            {f('phone', '電話')}
-            {f('fax', 'FAX')}
-            {f('email', 'メール')}
-            {f('contact_person', '担当者')}
+            <div>
+              <label className='block text-sm font-medium mb-1'>会社名 <span className='text-red-500'>*</span></label>
+              {inp('name', form.name)}
+            </div>
+            <div>
+              <label className='block text-sm font-medium mb-1'>略称</label>
+              {inp('short_name', form.short_name)}
+            </div>
+            <div>
+              <label className='block text-sm font-medium mb-1'>郵便番号</label>
+              {inp('postal_code', form.postal_code)}
+            </div>
+            <div>
+              <label className='block text-sm font-medium mb-1'>住所</label>
+              {inp('address', form.address)}
+            </div>
+            <div>
+              <label className='block text-sm font-medium mb-1'>電話</label>
+              {inp('phone', form.phone)}
+            </div>
+            <div>
+              <label className='block text-sm font-medium mb-1'>FAX</label>
+              {inp('fax', form.fax)}
+            </div>
+            <div>
+              <label className='block text-sm font-medium mb-1'>メール</label>
+              {inp('email', form.email)}
+            </div>
+            <div>
+              <label className='block text-sm font-medium mb-1'>担当者</label>
+              {inp('contact_person', form.contact_person)}
+            </div>
           </div>
           <div className='mt-4'>
             <label className='block text-sm font-medium mb-1'>備考</label>
-            <textarea className='w-full border rounded px-3 py-2' rows={2} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} />
+            <textarea className='w-full border rounded px-3 py-2' rows={2}
+              value={form.notes} onChange={e => setForm(prev => ({ ...prev, notes: e.target.value }))} />
           </div>
           <div className='flex gap-2 mt-4'>
             <button onClick={save} className='bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700'>保存</button>
@@ -136,7 +162,9 @@ export default function CompaniesPage() {
         </div>
       )}
 
-      {loading ? <p className='text-center text-gray-500'>読み込み中...</p> : (
+      {loading ? (
+        <p className='text-center text-gray-500'>読み込み中...</p>
+      ) : (
         <table className='w-full border-collapse'>
           <thead>
             <tr className='border-b bg-gray-50'>
