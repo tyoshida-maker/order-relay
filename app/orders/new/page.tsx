@@ -1,9 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-
-const supabase = createClientComponentClient()
+import { supabase } from '@/lib/supabase'
 
 type Item = { product_id: string; quantity: string; unit_price: string; notes: string }
 
