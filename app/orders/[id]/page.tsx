@@ -4,6 +4,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase, Company, Flow } from '@/lib/supabase'
 import { generateOrderPdf } from '@/lib/pdf-generator'
 
+type FlowStep = { role: string; company_id: string }
+
 type OrderWithItems = {
   id: string
   order_no: string
@@ -33,41 +35,46 @@ export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [order, setOrder] = useState<OrderWithItems | null>(null)
+  const [allCompanies, setAllCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [genMsg, setGenMsg] = useState('')
 
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          companies(*),
-          flows(*),
-          order_items(
+      const [{ data: orderData, error }, { data: compData }] = await Promise.all([
+        supabase
+          .from('orders')
+          .select(`
             *,
-            products(name, jan_code, category)
-          )
-        `)
-        .eq('id', id)
-        .single()
+            companies(*),
+            flows(*),
+            order_items(
+              *,
+              products(name, jan_code, category)
+            )
+          `)
+          .eq('id', id)
+          .single(),
+        supabase.from('companies').select('*')
+      ])
       if (error) console.error(error)
-      setOrder(data as OrderWithItems)
+      setOrder(orderData as OrderWithItems)
+      setAllCompanies((compData || []) as Company[])
       setLoading(false)
     }
     load()
   }, [id])
+
+  const findCompany = (cid: string) => allCompanies.find(c => c.id === cid)
 
   const generateAllPdfs = async () => {
     if (!order) return
     setGenerating(true)
     setGenMsg('')
     try {
-      const flowSteps: string[] = order.flows ? (order.flows.steps as string[]) : []
+      const steps: FlowStep[] = order.flows ? (order.flows.steps as FlowStep[]) : []
       const fromCompany = order.companies
-      const { data: allCompanies } = await supabase.from('companies').select('*')
-      const findCompany = (name: string) => allCompanies?.find((c: Company) => c.name === name || c.short_name === name)
       const items = order.order_items.map(i => ({
         name: i.products?.name || '',
         code: i.products?.jan_code || '',
@@ -77,28 +84,32 @@ export default function OrderDetailPage() {
         amount: i.amount ?? ((i.unit_price || 0) * i.quantity)
       }))
       let count = 0
-      if (flowSteps.length >= 2 && fromCompany) {
-        const toComp = findCompany(flowSteps[0])
+      // Generate order PDF: from_company -> first step buyer
+      const buyerStep = steps.find(s => s.role === 'buyer')
+      if (buyerStep && fromCompany) {
+        const toComp = findCompany(buyerStep.company_id)
         generateOrderPdf({
           type: 'order',
           orderNo: order.order_no,
           orderDate: order.order_date,
           deliveryDate: order.delivery_date || order.order_date,
-          toCompany: { name: toComp?.name || flowSteps[0], address: toComp?.address || '', phone: toComp?.phone || '' },
+          toCompany: { name: toComp?.name || '', address: toComp?.address || '', phone: toComp?.phone || '' },
           fromCompany: { name: fromCompany.name, address: fromCompany.address || '', phone: fromCompany.phone || '' },
           items
         })
         count++
       }
-      if (fromCompany) {
-        const lastStep = flowSteps.length > 0 ? flowSteps[flowSteps.length - 1] : ''
-        const toComp = findCompany(lastStep)
+      // Generate provisional delivery: seller -> buyer
+      const sellerStep = steps.find(s => s.role === 'seller')
+      if (sellerStep && fromCompany) {
+        const sellerComp = findCompany(sellerStep.company_id)
+        const buyerComp = buyerStep ? findCompany(buyerStep.company_id) : null
         generateOrderPdf({
           type: 'provisional_delivery',
           orderNo: order.order_no,
           orderDate: order.order_date,
           deliveryDate: order.delivery_date || order.order_date,
-          toCompany: { name: toComp?.name || lastStep, address: toComp?.address || '', phone: toComp?.phone || '' },
+          toCompany: { name: buyerComp?.name || fromCompany.name, address: buyerComp?.address || fromCompany.address || '', phone: buyerComp?.phone || fromCompany.phone || '' },
           fromCompany: { name: fromCompany.name, address: fromCompany.address || '', phone: fromCompany.phone || '' },
           items
         })
@@ -120,7 +131,7 @@ export default function OrderDetailPage() {
     return sum + amt
   }, 0)
 
-  const flowSteps = order.flows ? (order.flows.steps as string[]) : []
+  const steps: FlowStep[] = order.flows ? (order.flows.steps as FlowStep[]) : []
 
   return (
     <div className='container mx-auto p-6'>
@@ -163,12 +174,17 @@ export default function OrderDetailPage() {
           <div className='bg-blue-50 border border-blue-200 rounded-lg p-4'>
             <h2 className='font-semibold mb-3'>商流: {order.flows.name}</h2>
             <div className='flex items-center gap-2 flex-wrap'>
-              {flowSteps.map((step, i) => (
-                <span key={i} className='flex items-center gap-1'>
-                  <span className='bg-white border border-blue-300 text-blue-800 text-xs px-2 py-1 rounded'>{step}</span>
-                  {i < flowSteps.length - 1 && <span className='text-gray-400'>→</span>}
-                </span>
-              ))}
+              {steps.map((step, i) => {
+                const comp = findCompany(step.company_id)
+                return (
+                  <span key={i} className='flex items-center gap-1'>
+                    <span className='bg-white border border-blue-300 text-blue-800 text-xs px-2 py-1 rounded'>
+                      {comp?.short_name || comp?.name || step.company_id}
+                    </span>
+                    {i < steps.length - 1 && <span className='text-gray-400'>→</span>}
+                  </span>
+                )
+              })}
             </div>
           </div>
         )}
