@@ -1,116 +1,111 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
-import { supabase, Product } from '@/lib/supabase'
-import Papa from 'papaparse'
+import { useState, useEffect, useRef } from 'react'
+import { supabase } from '@/lib/supabase'
+
+type Product = {
+  id: string
+  jan_code: string | null
+  name: string
+  weight_g: number | null
+  category: string | null
+  price_per_100g: number | null
+  is_active: boolean
+}
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ code: '', name: '', unit: '個', description: '', notes: '' })
-  const [msg, setMsg] = useState('')
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [form, setForm] = useState({ jan_code: '', name: '', weight_g: '', category: '', price_per_100g: '' })
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  const load = async () => {
+  useEffect(() => { loadProducts() }, [])
+
+  async function loadProducts() {
     setLoading(true)
-    const { data } = await supabase.from('products').select('*').order('code')
-    setProducts(data || [])
+    const { data, error } = await supabase.from('products').select('id, jan_code, name, weight_g, category, price_per_100g, is_active').order('name')
+    if (!error && data) setProducts(data)
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
-
-  const save = async () => {
-    if (!form.code || !form.name) return setMsg('コードと商品名は必須です')
-    const { error } = await supabase.from('products').insert(form)
-    if (error) return setMsg('エラー: ' + error.message)
-    setMsg('登録しました')
+  async function handleSave() {
+    if (!form.name) { setError('商品名は必須です'); return }
+    const payload = {
+      jan_code: form.jan_code || null,
+      name: form.name,
+      weight_g: form.weight_g ? parseFloat(form.weight_g) : null,
+      category: form.category || null,
+      price_per_100g: form.price_per_100g ? parseFloat(form.price_per_100g) : null,
+      is_active: true,
+    }
+    const { error } = await supabase.from('products').insert([payload])
+    if (error) { setError(error.message); return }
+    setSuccess('登録しました')
+    setForm({ jan_code: '', name: '', weight_g: '', category: '', price_per_100g: '' })
     setShowForm(false)
-    setForm({ code: '', name: '', unit: '個', description: '', notes: '' })
-    load()
+    loadProducts()
   }
 
-  const handleCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        const rows = (results.data as Record<string, string>[]).map(r => ({
-          code: r.code || r['コード'] || '',
-          name: r.name || r['商品名'] || '',
-          unit: r.unit || r['単位'] || '個',
-          description: r.description || r['説明'] || null,
-          notes: r.notes || r['備考'] || null,
-        })).filter(r => r.code && r.name)
-        const { error } = await supabase.from('products').upsert(rows, { onConflict: 'code' })
-        setMsg(error ? 'エラー: ' + error.message : rows.length + '件インポートしました')
-        load()
-      }
-    })
-  }
-
-  const del = async (id: string) => {
+  async function handleDelete(id: string) {
     if (!confirm('削除しますか？')) return
     await supabase.from('products').delete().eq('id', id)
-    load()
+    loadProducts()
   }
 
+  const labelMap: {label: string, key: keyof typeof form, placeholder: string}[] = [
+    { label: 'コード（JAN等）', key: 'jan_code', placeholder: 'RICE-5KG など' },
+    { label: '商品名*', key: 'name', placeholder: '九州産ひのひかり無洗米５㎏' },
+    { label: '単位・ロット', key: 'category', placeholder: '5㎏×6袋' },
+    { label: '重量(g)', key: 'weight_g', placeholder: '5000' },
+    { label: '単価', key: 'price_per_100g', placeholder: '0' },
+  ]
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">商品管理</h1>
-        <div className="flex gap-2">
-          <label className="btn-secondary cursor-pointer">
-            📤 CSV取込
-            <input type="file" accept=".csv" className="hidden" onChange={handleCsv} />
-          </label>
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary">＋ 新規登録</button>
+    <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>商品管理</h1>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={() => fileRef.current?.click()} style={{ padding: '0.5rem 1rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer' }}>📥 CSV取込</button>
+          <input ref={fileRef} type='file' accept='.csv' style={{ display: 'none' }} />
+          <button onClick={() => { setShowForm(true); setError(''); setSuccess('') }} style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>＋ 新規登録</button>
         </div>
       </div>
-      {msg && <div className="mb-3 p-2 bg-blue-50 text-blue-700 rounded text-sm">{msg}</div>}
+      {success && <div style={{ padding: '0.75rem', background: '#eff6ff', borderRadius: 6, marginBottom: '1rem', color: '#1d4ed8' }}>{success}</div>}
+      {error && <div style={{ padding: '0.75rem', background: '#fef2f2', borderRadius: 6, marginBottom: '1rem', color: '#dc2626' }}>エラー：{error}</div>}
       {showForm && (
-        <div className="bg-gray-50 border rounded-lg p-4 mb-4">
-          <h2 className="font-semibold mb-3">新規商品</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {[['code','コード*'],['name','商品名*'],['unit','単位'],['description','説明'],['notes','備考']].map(([k,l]) => (
-              <div key={k}>
-                <label className="text-sm text-gray-600">{l}</label>
-                <input className="input-field mt-1" value={(form as Record<string,string>)[k] || ''} onChange={e => setForm({...form, [k]: e.target.value})} />
-              </div>
-            ))}
+        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, padding: '1.5rem', marginBottom: '1rem' }}>
+          <h2 style={{ fontWeight: 'bold', marginBottom: '1rem' }}>新規商品</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            {labelMap.map(({ label, key, placeholder }) => (
+              <div key={key}>
+                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>{label}</label>
+                <input type='text' placeholder={placeholder} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} />
+              </div>);)}
           </div>
-          <div className="mt-3 flex gap-2">
-            <button onClick={save} className="btn-primary">保存</button>
-            <button onClick={() => setShowForm(false)} className="btn-secondary">キャンセル</button>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+            <button onClick={handleSave} style={{ padding: '0.5rem 1.5rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>保存</button>
+            <button onClick={() => setShowForm(false)} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer' }}>キャンセル</button>
           </div>
-        </div>
-      )}
-      {loading ? <div className="text-center py-8 text-gray-500">読み込み中...</div> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="bg-gray-100">
-              <th className="p-2 text-left">コード</th>
-              <th className="p-2 text-left">商品名</th>
-              <th className="p-2 text-left">単位</th>
-              <th className="p-2 text-left">説明</th>
-              <th className="p-2"></th>
-            </tr></thead>
-            <tbody>
-              {products.map(p => (
-                <tr key={p.id} className="border-b hover:bg-gray-50">
-                  <td className="p-2 font-mono text-sm">{p.code}</td>
-                  <td className="p-2 font-medium">{p.name}</td>
-                  <td className="p-2">{p.unit}</td>
-                  <td className="p-2 text-gray-500">{p.description}</td>
-                  <td className="p-2"><button onClick={() => del(p.id)} className="text-red-500 hover:text-red-700 text-xs">削除</button></td>
-                </tr>
-              ))}
-              {products.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-400">商品が登録されていません</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
+        </div>)}
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: 8, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+        <thead><tr style={{ background: '#f9fafb' }}>
+          {['コード', '商品名', '単位・ロット', '単価', ''].map(h => (
+            <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>{h}</th>))}
+        </tr></thead>
+        <tbody>
+          {loading ? (<tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>読み込み中...</td></tr>)
+          : products.length === 0 ? (<tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>商品が登録されていません</td></tr>)
+          : products.map(p => (
+            <tr key={p.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+              <td style={{ padding: '0.75rem 1rem', fontSize: '0.875rem', color: '#6b7280' }}>{p.jan_code || '-'}</td>
+              <td style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>{p.name}</td>
+              <td style={{ padding: '0.75rem 1rem', color: '#6b7280' }}>{p.category || '-'}</td>
+              <td style={{ padding: '0.75rem 1rem', color: '#6b7280' }}>{p.price_per_100g != null ? p.price_per_100g.toLocaleString() : '-'}</td>
+              <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}><button onClick={() => handleDelete(p.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>削除</button></td>
+            </tr>))}
+        </tbody>
+      </table>
+    </div>)
 }
