@@ -54,8 +54,8 @@ export default function NewOrderPage() {
   }
 
   const save = async () => {
-    if (!form.from_company_id) return setMsg('çºæ³¨åãé¸æãã¦ãã ãã')
-    if (items.every(i => !i.product_id)) return setMsg('ååã1ã¤ä»¥ä¸é¸æãã¦ãã ãã')
+    if (!form.from_company_id) return setMsg('発注元を選択してください')
+    if (items.every(i => !i.product_id)) return setMsg('商品を1つ以上選択してください')
     setSaving(true)
     const order_no = genOrderNo()
     const { data: orderData, error: orderError } = await supabase.from('orders').insert({
@@ -67,7 +67,7 @@ export default function NewOrderPage() {
       notes: form.notes,
       status: 'confirmed'
     }).select().single()
-    if (orderError) { setMsg('ã¨ã©ã¼: ' + orderError.message); setSaving(false); return }
+    if (orderError) { setMsg('エラー: ' + orderError.message); setSaving(false); return }
     const validItems = items.filter(i => i.product_id).map((i, idx) => ({
       order_id: orderData.id,
       product_id: i.product_id,
@@ -77,75 +77,75 @@ export default function NewOrderPage() {
       sort_order: idx
     }))
     const { error: itemError } = await supabase.from('order_items').insert(validItems)
-    if (itemError) { setMsg('ã¨ã©ã¼: ' + itemError.message); setSaving(false); return }
+    if (itemError) { setMsg('エラー: ' + itemError.message); setSaving(false); return }
     router.push('/orders/' + orderData.id)
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">æ°è¦çºæ³¨</h1>
+      <h1 className="text-2xl font-bold mb-4">新規発注</h1>
       {msg && <div className="mb-3 p-2 bg-red-50 text-red-700 rounded text-sm">{msg}</div>}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="label">çºæ³¨æ¥</label>
+          <label className="label">発注日</label>
           <input type="date" className="input-field" value={form.order_date} onChange={e => setForm({...form,order_date:e.target.value})} />
         </div>
         <div>
-          <label className="label">ç´åå¸ææ¥</label>
+          <label className="label">納品希望日</label>
           <input type="date" className="input-field" value={form.delivery_date} onChange={e => setForm({...form,delivery_date:e.target.value})} />
         </div>
         <div>
-          <label className="label">çºæ³¨å*</label>
+          <label className="label">発注元*</label>
           <select className="input-field" value={form.from_company_id} onChange={e => setForm({...form,from_company_id:e.target.value})}>
-            <option value="">é¸æãã¦ãã ãã</option>
+            <option value="">選択してください</option>
             {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="label">åæµ</label>
+          <label className="label">商流</label>
           <select className="input-field" value={form.flow_id} onChange={e => setForm({...form,flow_id:e.target.value})}>
-            <option value="">é¸æãã¦ãã ãã</option>
+            <option value="">選択してください</option>
             {flows.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
         </div>
         <div className="col-span-2">
-          <label className="label">åè</label>
+          <label className="label">備考</label>
           <input className="input-field" value={form.notes} onChange={e => setForm({...form,notes:e.target.value})} />
         </div>
       </div>
-      <h2 className="font-semibold mb-2">çºæ³¨æç´°</h2>
+      <h2 className="font-semibold mb-2">発注明細</h2>
       <div className="space-y-2 mb-3">
         {items.map((item, i) => (
           <div key={i} className="flex gap-2 items-end">
             <div className="flex-1">
-              <label className="text-xs text-gray-500">åå</label>
+              <label className="text-xs text-gray-500">商品</label>
               <select className="input-field" value={item.product_id} onChange={e => updateItem(i,'product_id',e.target.value)}>
-                <option value="">é¸æ</option>
+                <option value="">選択</option>
                 {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div className="w-24">
-              <label className="text-xs text-gray-500">æ°é</label>
+              <label className="text-xs text-gray-500">数量</label>
               <input type="number" className="input-field" value={item.quantity} onChange={e => updateItem(i,'quantity',e.target.value)} min="0" step="0.001" />
             </div>
             <div className="w-28">
-              <label className="text-xs text-gray-500">åä¾¡</label>
-              <input type="number" className="input-field" value={item.unit_price} onChange={e => updateItem(i,'unit_price',e.target.value)} placeholder="èªå" />
+              <label className="text-xs text-gray-500">単価</label>
+              <input type="number" className="input-field" value={item.unit_price} onChange={e => updateItem(i,'unit_price',e.target.value)} placeholder="自動" />
             </div>
             <div className="flex-1">
-              <label className="text-xs text-gray-500">åè</label>
+              <label className="text-xs text-gray-500">備考</label>
               <input className="input-field" value={item.notes} onChange={e => updateItem(i,'notes',e.target.value)} />
             </div>
-            {i > 0 && <button onClick={() => setItems(items.filter((_,j) => j !== i))} className="text-red-500 text-sm mb-1">åé¤</button>}
+            {i > 0 && <button onClick={() => setItems(items.filter((_,j) => j !== i))} className="text-red-500 text-sm mb-1">削除</button>}
           </div>
         ))}
       </div>
-      <button onClick={() => setItems([...items,{product_id:'',quantity:'1',unit_price:'',notes:''}])} className="text-sm text-blue-600 hover:underline mb-4">ï¼ æç´°è¿½å </button>
+      <button onClick={() => setItems([...items,{product_id:'',quantity:'1',unit_price:'',notes:''}])} className="text-sm text-blue-600 hover:underline mb-4">＋ 明細追加</button>
       <div className="flex gap-3 mt-4">
         <button onClick={save} disabled={saving} className="btn-primary disabled:opacity-50">
-          {saving ? 'ä¿å­ä¸­...' : 'ð¾ çºæ³¨ãç¢ºå®'}
+          {saving ? '保存中...' : '💾 発注を確定'}
         </button>
-        <button onClick={() => router.back()} className="btn-secondary">ã­ã£ã³ã»ã«</button>
+        <button onClick={() => router.back()} className="btn-secondary">キャンセル</button>
       </div>
     </div>
   )
