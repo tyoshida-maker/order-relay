@@ -20,22 +20,21 @@ export default function RootLayout({
       <body className={inter.className}>
         <nav className="bg-blue-700 text-white shadow-lg">
           <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center h-14">
-              <Link href="/" className="font-bold text-lg mr-8 hover:text-blue-200">📦 Order Relay</Link>
-              <div className="flex gap-1 text-sm flex-wrap">
-                <Link href="/companies" className="px-3 py-1 rounded hover:bg-blue-600">取引先</Link>
-                <Link href="/products" className="px-3 py-1 rounded hover:bg-blue-600">商品</Link>
-                <Link href="/prices" className="px-3 py-1 rounded hover:bg-blue-600">価格</Link>
-                <Link href="/flows" className="px-3 py-1 rounded hover:bg-blue-600">商流</Link>
-                <Link href="/templates" className="px-3 py-1 rounded hover:bg-blue-600">テンプレ</Link>
-                <Link href="/orders/new" className="px-3 py-2 bg-orange-500 rounded font-semibold hover:bg-orange-400">＋発注</Link>
-              </div>
+            <div className="flex items-center h-14 gap-1 flex-wrap">
+              <Link href="/" className="font-bold text-lg mr-6 hover:text-blue-200">📦 Order Relay</Link>
+              <Link href="/companies" className="px-3 py-1 rounded hover:bg-blue-600 text-sm">取引先</Link>
+              <Link href="/products" className="px-3 py-1 rounded hover:bg-blue-600 text-sm">商品</Link>
+              <Link href="/prices" className="px-3 py-1 rounded hover:bg-blue-600 text-sm">価格</Link>
+              <Link href="/flows" className="px-3 py-1 rounded hover:bg-blue-600 text-sm">商流</Link>
+              <Link href="/templates" className="px-3 py-1 rounded hover:bg-blue-600 text-sm">テンプレ</Link>
+              <Link href="/tracking" className="px-3 py-1 rounded hover:bg-blue-600 text-sm bg-blue-500">🚚 配送追跡</Link>
+              <Link href="/orders/new" className="ml-2 bg-orange-500 hover:bg-orange-400 px-4 py-1.5 rounded-lg font-medium text-sm">＋発注</Link>
             </div>
           </div>
         </nav>
-        <main className="max-w-7xl mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto px-4 py-6">
           {children}
-        </main>
+        </div>
       </body>
     </html>
   )
