@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase, Company, Flow } from '@/lib/supabase'
+import { generateOrderPdf } from '@/lib/pdf-generator'
 
 type OrderWithItems = {
   id: string
@@ -20,7 +21,7 @@ type OrderWithItems = {
     notes: string | null
     products: {
       name: string
-      code: string
+      jan_code: string
       category: string
     } | null
   }>
@@ -38,7 +39,7 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('orders')
         .select(`
           *,
@@ -46,11 +47,12 @@ export default function OrderDetailPage() {
           flows(*),
           order_items(
             *,
-            products(name, code, category)
+            products(name, jan_code, category)
           )
         `)
         .eq('id', id)
         .single()
+      if (error) console.error(error)
       setOrder(data as OrderWithItems)
       setLoading(false)
     }
@@ -62,39 +64,50 @@ export default function OrderDetailPage() {
     setGenerating(true)
     setGenMsg('')
     try {
-      const { generateOrderPdf } = await import('@/lib/pdf-generator')
-      const flow = order.flows
-      const steps = flow ? (flow.steps as string[]) : []
+      const flowSteps: string[] = order.flows ? (order.flows.steps as string[]) : []
+      const fromCompany = order.companies
+      const { data: allCompanies } = await supabase.from('companies').select('*')
+      const findCompany = (name: string) => allCompanies?.find((c: Company) => c.name === name || c.short_name === name)
+      const items = order.order_items.map(i => ({
+        name: i.products?.name || '',
+        code: i.products?.jan_code || '',
+        category: i.products?.category || '',
+        quantity: i.quantity,
+        unit_price: i.unit_price || 0,
+        amount: i.amount ?? ((i.unit_price || 0) * i.quantity)
+      }))
       let count = 0
-      for (let i = 0; i < steps.length; i++) {
-        const toId = steps[i]
-        const fromId = i === 0 ? order.from_company_id : steps[i - 1]
-        const { data: toCompany } = await supabase.from('companies').select('*').eq('id', toId).single()
-        const { data: fromCompany } = await supabase.from('companies').select('*').eq('id', fromId || '').single()
-        if (toCompany && fromCompany) {
-          const items = order.order_items.map(item => ({
-            name: item.products?.name || '',
-            code: item.products?.code || '',
-            category: item.products?.category || '',
-            quantity: item.quantity,
-            unit_price: item.unit_price || 0,
-            amount: item.amount ?? ((item.unit_price || 0) * item.quantity)
-          }))
-          generateOrderPdf({
-            type: 'order',
-            orderNo: order.order_no,
-            orderDate: order.order_date,
-            deliveryDate: order.delivery_date || '',
-            toCompany: { name: toCompany.name },
-            fromCompany: { name: fromCompany.name },
-            items
-          })
-          count++
-        }
+      if (flowSteps.length >= 2 && fromCompany) {
+        const toComp = findCompany(flowSteps[0])
+        generateOrderPdf({
+          type: 'order',
+          orderNo: order.order_no,
+          orderDate: order.order_date,
+          deliveryDate: order.delivery_date || order.order_date,
+          toCompany: { name: toComp?.name || flowSteps[0], address: toComp?.address || '', phone: toComp?.phone || '' },
+          fromCompany: { name: fromCompany.name, address: fromCompany.address || '', phone: fromCompany.phone || '' },
+          items
+        })
+        count++
       }
-      setGenMsg(count + '個のドキュメントを開きました')
-    } catch (e) {
-      setGenMsg('エラー: ' + String(e))
+      if (fromCompany) {
+        const lastStep = flowSteps.length > 0 ? flowSteps[flowSteps.length - 1] : ''
+        const toComp = findCompany(lastStep)
+        generateOrderPdf({
+          type: 'provisional_delivery',
+          orderNo: order.order_no,
+          orderDate: order.order_date,
+          deliveryDate: order.delivery_date || order.order_date,
+          toCompany: { name: toComp?.name || lastStep, address: toComp?.address || '', phone: toComp?.phone || '' },
+          fromCompany: { name: fromCompany.name, address: fromCompany.address || '', phone: fromCompany.phone || '' },
+          items
+        })
+        count++
+      }
+      setGenMsg(count + '文書を開きました')
+    } catch(e) {
+      console.error(e)
+      setGenMsg('エラーが発生しました')
     }
     setGenerating(false)
   }
@@ -119,57 +132,57 @@ export default function OrderDetailPage() {
         <div className='flex gap-2'>
           <button onClick={generateAllPdfs} disabled={generating}
             className='bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50'>
-            {generating ? '生成中...' : 'PDF 一括生成'}
+            {generating ? '生成中...' : 'PDF一括生成'}
           </button>
           <button onClick={() => router.push('/orders/new')}
             className='border px-4 py-2 rounded hover:bg-gray-50'>
-            + 新規発注
+            +新規発注
           </button>
         </div>
       </div>
-
-      {genMsg && <div className='bg-green-50 border border-green-200 text-green-800 px-4 py-2 rounded mb-4'>{genMsg}</div>}
-
-      <div className='grid grid-cols-2 gap-4 mb-6'>
-        <div className='border rounded p-4 bg-white'>
+      {genMsg && <div className='mb-4 p-3 bg-green-50 text-green-800 rounded'>{genMsg}</div>}
+      <div className='grid grid-cols-2 gap-6 mb-6'>
+        <div className='bg-white border rounded-lg p-4'>
           <h2 className='font-semibold mb-3'>発注情報</h2>
-          <table className='w-full text-sm'>
-            <tbody>
-              <tr>
-                <td className='text-gray-500 py-1 w-1/3'>発注元</td>
-                <td className='font-medium text-blue-700'>{order.companies?.name}</td>
-              </tr>
-              <tr>
-                <td className='text-gray-500 py-1'>発注日</td>
-                <td>{order.order_date}</td>
-              </tr>
-              <tr>
-                <td className='text-gray-500 py-1'>納品希望日</td>
-                <td>{order.delivery_date || '-'}</td>
-              </tr>
-            </tbody>
-          </table>
+          <dl className='space-y-2 text-sm'>
+            <div className='flex gap-2'>
+              <dt className='text-gray-500 w-24'>発注元</dt>
+              <dd className='text-blue-700 font-medium'>{order.companies?.name}</dd>
+            </div>
+            <div className='flex gap-2'>
+              <dt className='text-gray-500 w-24'>発注日</dt>
+              <dd>{order.order_date}</dd>
+            </div>
+            <div className='flex gap-2'>
+              <dt className='text-gray-500 w-24'>納品希望日</dt>
+              <dd>{order.delivery_date}</dd>
+            </div>
+          </dl>
         </div>
-        <div className='border rounded p-4 bg-blue-50'>
-          <h2 className='font-semibold mb-3'>商流: {order.flows?.name}</h2>
-          <div className='flex flex-wrap gap-2 items-center'>
-            {flowSteps.map((stepId, idx) => (
-              <FlowStepBadge key={stepId} companyId={stepId} isLast={idx === flowSteps.length - 1} />
-            ))}
+        {order.flows && (
+          <div className='bg-blue-50 border border-blue-200 rounded-lg p-4'>
+            <h2 className='font-semibold mb-3'>商流: {order.flows.name}</h2>
+            <div className='flex items-center gap-2 flex-wrap'>
+              {flowSteps.map((step, i) => (
+                <span key={i} className='flex items-center gap-1'>
+                  <span className='bg-white border border-blue-300 text-blue-800 text-xs px-2 py-1 rounded'>{step}</span>
+                  {i < flowSteps.length - 1 && <span className='text-gray-400'>→</span>}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
-
-      <div className='border rounded p-4 bg-white'>
+      <div className='bg-white border rounded-lg p-4'>
         <h2 className='font-semibold mb-3'>発注明細</h2>
-        <table className='w-full'>
+        <table className='w-full text-sm'>
           <thead>
             <tr className='border-b bg-gray-50'>
-              <th className='text-left p-2'>商品</th>
-              <th className='text-right p-2'>数量</th>
-              <th className='text-left p-2'>単位</th>
-              <th className='text-right p-2'>単価</th>
-              <th className='text-right p-2'>金額</th>
+              <th className='text-left py-2 px-3'>商品</th>
+              <th className='text-right py-2 px-3'>数量</th>
+              <th className='text-left py-2 px-3'>単位</th>
+              <th className='text-right py-2 px-3'>単価</th>
+              <th className='text-right py-2 px-3'>金額</th>
             </tr>
           </thead>
           <tbody>
@@ -177,38 +190,23 @@ export default function OrderDetailPage() {
               const amt = item.amount ?? ((item.unit_price || 0) * item.quantity)
               return (
                 <tr key={item.id} className='border-b'>
-                  <td className='p-2'>{item.products?.name}</td>
-                  <td className='p-2 text-right'>{item.quantity}</td>
-                  <td className='p-2'>{item.products?.category}</td>
-                  <td className='p-2 text-right'>¥{(item.unit_price || 0).toLocaleString()}</td>
-                  <td className='p-2 text-right'>¥{amt.toLocaleString()}</td>
+                  <td className='py-2 px-3'>{item.products?.name}</td>
+                  <td className='py-2 px-3 text-right'>{item.quantity}</td>
+                  <td className='py-2 px-3'>{item.products?.category}</td>
+                  <td className='py-2 px-3 text-right'>￥{(item.unit_price || 0).toLocaleString()}</td>
+                  <td className='py-2 px-3 text-right'>￥{amt.toLocaleString()}</td>
                 </tr>
               )
             })}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={4} className='p-2 text-right font-semibold'>合計</td>
-              <td className='p-2 text-right font-bold text-lg'>¥{total.toLocaleString()}</td>
+              <td colSpan={4} className='py-2 px-3 text-right font-semibold'>合計</td>
+              <td className='py-2 px-3 text-right font-bold'>￥{total.toLocaleString()}</td>
             </tr>
           </tfoot>
         </table>
       </div>
     </div>
-  )
-}
-
-function FlowStepBadge({ companyId, isLast }: { companyId: string; isLast: boolean }) {
-  const [name, setName] = useState('')
-  useEffect(() => {
-    supabase.from('companies').select('name').eq('id', companyId).single().then(({ data }) => {
-      if (data) setName(data.name)
-    })
-  }, [companyId])
-  return (
-    <>
-      <span className='bg-white border px-2 py-1 rounded text-sm'>{name || companyId}</span>
-      {!isLast && <span className='text-gray-400'>→</span>}
-    </>
   )
 }
