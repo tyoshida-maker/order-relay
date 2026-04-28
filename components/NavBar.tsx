@@ -11,7 +11,6 @@ export default function NavBar() {
   const router = useRouter()
   const pathname = usePathname()
 
-  // ログインページはナビなし
   if (pathname === '/login') return null
 
   useEffect(() => {
@@ -19,7 +18,7 @@ export default function NavBar() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { setLoading(false); return }
       const { data } = await supabase
-        .from('user_profiles')
+        .from('or_user_profiles')
         .select('*')
         .eq('id', session.user.id)
         .single()
@@ -27,10 +26,7 @@ export default function NavBar() {
       setLoading(false)
     }
     loadProfile()
-
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadProfile()
-    })
+    const { data: listener } = supabase.auth.onAuthStateChange(() => { loadProfile() })
     return () => listener.subscription.unsubscribe()
   }, [])
 
@@ -48,7 +44,6 @@ export default function NavBar() {
         <div className="flex items-center h-14 gap-1 flex-wrap">
           <Link href="/" className="font-bold text-lg mr-6 hover:text-blue-200">📦 Order Relay</Link>
 
-          {/* 管理者のみ表示 */}
           {isAdmin && (
             <>
               <Link href="/companies" className="px-3 py-1 rounded hover:bg-blue-600 text-sm">取引先</Link>
@@ -62,7 +57,6 @@ export default function NavBar() {
             </>
           )}
 
-          {/* 取引先のみ表示 */}
           {!isAdmin && !loading && profile && (
             <>
               <Link href="/partner/orders" className="px-3 py-1 rounded hover:bg-blue-600 text-sm">発注内容</Link>
@@ -70,7 +64,6 @@ export default function NavBar() {
             </>
           )}
 
-          {/* 右端: ユーザー情報 + ログアウト */}
           <div className="ml-auto flex items-center gap-3">
             {!loading && profile && (
               <span className="text-sm text-blue-200">
