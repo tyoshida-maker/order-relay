@@ -89,3 +89,29 @@ export type OrderItem = {
   sort_order: number
   created_at: string
 }
+
+export type Shipment = {
+  id: string
+  order_id: string
+  carrier: string
+  tracking_number: string
+  tracking_url: string | null
+  status: string
+  shipped_at: string | null
+  estimated_from: string | null
+  estimated_to: string | null
+  delivered_at: string | null
+  delayed: boolean
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ShipmentEvent = {
+  id: string
+  shipment_id: string
+  event_time: string
+  description: string
+  location: string | null
+  created_at: string
+}
