@@ -21,7 +21,7 @@ export interface PdfOrder {
   order_items: PdfOrderItem[]
 }
 
-export interface PdfCompany {
+export type PdfCompany = {
   name: string
   address?: string | null
   phone?: string | null
@@ -63,15 +63,20 @@ export function buildOrderHtml(
   const yen = '\u00a5'
 
   const rows = items.map((item) => {
-    const cols = [
-      item.products?.name || '-',
+    const cells = [
+      item.products ? item.products.name : '-',
       fmt(item.quantity),
-      item.products?.unit || '',
+      item.products ? item.products.unit : '',
       item.unit_price ? yen + fmt(item.unit_price) : '-',
       item.amount ? yen + fmt(item.amount) : '-',
     ]
-    return '<tr>' + cols.map(c => '<td>' + c + '</td>').join('') + '</tr>'
+    return '<tr>' + cells.map(c => '<td>' + c + '</td>').join('') + '</tr>'
   }).join('')
+
+  const toName = billedTo ? billedTo.name : ''
+  const toPhone = billedTo && billedTo.phone ? billedTo.phone : ''
+  const fromName = billedFrom ? billedFrom.name : ''
+  const fromPhone = billedFrom && billedFrom.phone ? billedFrom.phone : ''
 
   const parts = [
     '<!DOCTYPE html>',
@@ -79,30 +84,20 @@ export function buildOrderHtml(
     '<head>',
     '<meta charset="UTF-8">',
     '<title>' + title + '</title>',
-    '<style>',
-    'body{font-family:sans-serif;font-size:10pt;margin:20px}',
-    'h1{font-size:16pt;text-align:center;border-bottom:2px solid #1d4ed8;padding-bottom:6px}',
-    '.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}',
-    '.box{border:1px solid #ccc;padding:8px;border-radius:4px}',
-    '.lbl{font-size:8pt;color:#555}',
-    '.nm{font-size:12pt;font-weight:bold}',
-    '.meta{background:#f5f5f5;padding:8px;margin-bottom:12px;font-size:9pt}',
-    'table{width:100%;border-collapse:collapse}',
-    'thead tr{background:#1d4ed8;color:#fff}',
-    'th,td{padding:4px 6px;font-size:9pt;border-bottom:1px solid #eee}',
-    '.tot{text-align:right;font-size:12pt;font-weight:bold;margin-top:8px;border-top:2px solid #333;padding-top:4px}',
-    '</style>',
+    '<style>body{font-family:sans-serif;font-size:10pt;margin:20px}</style>',
     '</head>',
     '<body>',
-    '<h1>' + title + '</h1>',
-    '<div class="grid">',
-    '<div class="box"><div class="lbl">To</div><div class="nm">' + (billedTo?.name || '') + '</div>' + (billedTo?.phone ? '<div>TEL: ' + billedTo.phone + '</div>' : '') + '</div>',
-    '<div class="box"><div class="lbl">From</div><div class="nm">' + (billedFrom?.name || '') + '</div>' + (billedFrom?.phone ? '<div>TEL: ' + billedFrom.phone + '</div>' : '') + '</div>',
+    '<h1 style="text-align:center;border-bottom:2px solid #1d4ed8;padding-bottom:6px">' + title + '</h1>',
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0">',
+    '<div style="border:1px solid #ccc;padding:8px"><div style="font-size:8pt">To</div><div style="font-size:12pt;font-weight:bold">' + toName + '</div>' + (toPhone ? '<div>TEL: ' + toPhone + '</div>' : '') + '</div>',
+    '<div style="border:1px solid #ccc;padding:8px"><div style="font-size:8pt">From</div><div style="font-size:12pt;font-weight:bold">' + fromName + '</div>' + (fromPhone ? '<div>TEL: ' + fromPhone + '</div>' : '') + '</div>',
     '</div>',
-    '<div class="meta">Order: <b>' + order.order_no + '</b> | Date: ' + fmtD(order.order_date) + ' | Delivery: ' + fmtD(order.delivery_date) + '</div>',
-    '<table><thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Price</th><th>Amount</th></tr></thead>',
-    '<tbody>' + rows + '</tbody></table>',
-    '<div class="tot">Total: ' + yen + fmt(total) + '</div>',
+    '<div style="background:#f5f5f5;padding:8px;margin-bottom:12px;font-size:9pt">Order: <b>' + order.order_no + '</b> Date: ' + fmtD(order.order_date) + ' Delivery: ' + fmtD(order.delivery_date) + '</div>',
+    '<table style="width:100%;border-collapse:collapse">',
+    '<thead><tr style="background:#1d4ed8;color:#fff"><th>Item</th><th>Qty</th><th>Unit</th><th>Price</th><th>Amount</th></tr></thead>',
+    '<tbody>' + rows + '</tbody>',
+    '</table>',
+    '<div style="text-align:right;font-size:12pt;font-weight:bold;margin-top:8px;border-top:2px solid #333;padding-top:4px">Total: ' + yen + fmt(total) + '</div>',
     '</body></html>',
   ]
   return parts.join('')
