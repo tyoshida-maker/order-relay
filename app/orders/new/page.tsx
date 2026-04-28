@@ -78,17 +78,17 @@ export default function NewOrderPage() {
     }))
     const { error: itemError } = await supabase.from('order_items').insert(validItems)
     if (itemError) { setMsg('エラー: ' + itemError.message); setSaving(false); return }
-    // メール通知送信
+    // メール通知送信（最初のステップのみ）
     try {
       const selectedFlow = flows.find(f => f.id === form.flow_id)
       const fromCompany = companies.find(c => c.id === form.from_company_id)
-      const flowCompanies = selectedFlow?.steps
-        ? selectedFlow.steps.map((s: any) => companies.find(c => c.id === s.company_id)).filter(Boolean)
-        : []
+      const firstStepCompanyId = selectedFlow?.steps?.[0]?.company_id
+      const firstStepCompany = firstStepCompanyId ? companies.find(c => c.id === firstStepCompanyId) : null
       const emailItems = validItems.map(vi => {
         const prod = products.find(p => p.id === vi.product_id)
         return { product_name: prod?.name || '', quantity: vi.quantity, unit: prod?.unit || '' }
       })
+      // 最初のステップの会社にだけメール送信
       await fetch('/api/send-order-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,7 +98,7 @@ export default function NewOrderPage() {
           delivery_date: form.delivery_date,
           from_company: fromCompany?.name || '',
           flow_name: selectedFlow?.name || '',
-          flow_companies: flowCompanies.map((c: any) => ({ name: c.name, email: c.email })),
+          flow_companies: firstStepCompany ? [{ name: firstStepCompany.name, email: firstStepCompany.email }] : [],
           items: emailItems,
           notes: form.notes
         })
