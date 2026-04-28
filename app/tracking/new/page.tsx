@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase, Order } from '@/lib/supabase'
 
@@ -12,7 +12,7 @@ const TRACKING_URLS: Record<string, string> = {
   '日本郵便': 'https://trackings.post.japanpost.jp/services/srv/search/',
 }
 
-export default function TrackingNewPage() {
+function TrackingNewForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preOrderId = searchParams.get('order_id') || ''
@@ -60,7 +60,6 @@ export default function TrackingNewPage() {
 
     if (err) { setError(err.message); setSaving(false); return }
 
-    // 初回イベントを追加
     await supabase.from('shipment_events').insert({
       shipment_id: data.id,
       event_time: new Date().toISOString(),
@@ -68,7 +67,6 @@ export default function TrackingNewPage() {
       location: null,
     })
 
-    // 発注ステータスも更新
     await supabase.from('orders').update({ status: 'in_transit' }).eq('id', form.order_id)
 
     router.push('/tracking/' + data.id)
@@ -158,5 +156,13 @@ export default function TrackingNewPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function TrackingNewPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-gray-400">読み込み中...</div>}>
+      <TrackingNewForm />
+    </Suspense>
   )
 }
