@@ -25,6 +25,8 @@ export type Product = {
   code: string
   name: string
   unit: string
+  category: string
+  tenant_id: string | null
   description: string | null
   notes: string | null
   created_at: string
