@@ -19,21 +19,14 @@ export default function PartnerTrackingPage() {
     const load = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-      const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', session.user.id).single()
+      const { data: profile } = await supabase.from('or_user_profiles').select('*').eq('id', session.user.id).single()
       if (!profile?.company_id) { setLoading(false); return }
-
-      // 自社関連の発注の配送のみ表示
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('from_company_id', profile.company_id)
-      
+      const { data: orders } = await supabase.from('orders').select('id').eq('from_company_id', profile.company_id)
       const orderIds = (orders || []).map((o: any) => o.id)
       if (orderIds.length === 0) { setLoading(false); return }
-
       const { data } = await supabase
         .from('shipments')
-        .select(`*, orders(order_no, delivery_date, order_items(quantity, products(name)))`)
+        .select('*, orders(order_no, delivery_date, order_items(quantity, products(name)))')
         .in('order_id', orderIds)
         .order('created_at', { ascending: false })
       setShipments(data || [])
@@ -51,7 +44,7 @@ export default function PartnerTrackingPage() {
         <div className="text-center py-8 text-gray-400">配送情報がありません</div>
       ) : (
         <div className="space-y-3">
-          {shipments.map(s => {
+          {shipments.map((s: any) => {
             const st = STATUS_LABEL[s.status] || { label: s.status, color: '#6b7280' }
             const items = s.orders?.order_items || []
             return (
@@ -59,9 +52,7 @@ export default function PartnerTrackingPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="font-semibold">発注番号: {s.orders?.order_no}</div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {s.carrier} / 追跡番号: {s.tracking_number || '-'}
-                    </div>
+                    <div className="text-sm text-gray-500 mt-1">{s.carrier} / 追跡番号: {s.tracking_number || '-'}</div>
                     {s.estimated_from && (
                       <div className="text-sm text-blue-600 mt-1">
                         配送予定: {new Date(s.estimated_from).toLocaleDateString('ja-JP')}
@@ -70,24 +61,14 @@ export default function PartnerTrackingPage() {
                     )}
                     {items.length > 0 && (
                       <div className="text-sm text-gray-600 mt-1">
-                        商品: {items.map((i: any) => `${i.products?.name || '-'} ×${i.quantity}`).join(', ')}
+                        商品: {items.map((i: any) => i.products?.name + ' ×' + i.quantity).join(', ')}
                       </div>
                     )}
-                    {s.tracking_url && (
-                      <a href={s.tracking_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline mt-1 block">
-                        配送会社で追跡 ↗
-                      </a>
-                    )}
+                    {s.tracking_url && <a href={s.tracking_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline mt-1 block">配送会社で追跡 ↗</a>}
                   </div>
-                  <span className="px-3 py-1 rounded-full text-sm font-medium text-white" style={{ background: st.color }}>
-                    {st.label}
-                  </span>
+                  <span className="px-3 py-1 rounded-full text-sm font-medium text-white" style={{ background: st.color }}>{st.label}</span>
                 </div>
-                {s.delayed && (
-                  <div className="mt-2 p-2 bg-red-50 text-red-600 text-sm rounded">
-                    ⚠️ 遅延が発生しています
-                  </div>
-                )}
+                {s.delayed && <div className="mt-2 p-2 bg-red-50 text-red-600 text-sm rounded">⚠️ 遅延が発生しています</div>}
               </div>
             )
           })}
