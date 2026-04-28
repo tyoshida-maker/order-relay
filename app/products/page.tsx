@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import Papa from 'papaparse'
 
 const OR_TENANT = '00000000-0000-0000-0000-000000000001'
 
@@ -18,6 +19,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [form, setForm] = useState({ jan_code: '', name: '', weight_g: '', category: '', price_per_100g: '' })
@@ -35,6 +37,27 @@ export default function ProductsPage() {
     setLoading(false)
   }
 
+  function startEdit(p: Product) {
+    setForm({
+      jan_code: p.jan_code || '',
+      name: p.name || '',
+      weight_g: p.weight_g != null ? String(p.weight_g) : '',
+      category: p.category || '',
+      price_per_100g: p.price_per_100g != null ? String(p.price_per_100g) : ''
+    })
+    setEditId(p.id)
+    setShowForm(true)
+    setError('')
+    setSuccess('')
+  }
+
+  function cancelForm() {
+    setForm({ jan_code: '', name: '', weight_g: '', category: '', price_per_100g: '' })
+    setEditId(null)
+    setShowForm(false)
+    setError('')
+  }
+
   async function handleSave() {
     if (!form.name) { setError('商品名は必須です'); return }
     const payload = {
@@ -46,10 +69,18 @@ export default function ProductsPage() {
       price_per_100g: form.price_per_100g ? parseFloat(form.price_per_100g) : null,
       is_active: true,
     }
-    const { error } = await supabase.from('products').insert([payload])
-    if (error) { setError(error.message); return }
-    setSuccess('登録しました')
+    let err
+    if (editId) {
+      const res = await supabase.from('products').update(payload).eq('id', editId)
+      err = res.error
+    } else {
+      const res = await supabase.from('products').insert([payload])
+      err = res.error
+    }
+    if (err) { setError(err.message); return }
+    setSuccess(editId ? '更新しました' : '登録しました')
     setForm({ jan_code: '', name: '', weight_g: '', category: '', price_per_100g: '' })
+    setEditId(null)
     setShowForm(false)
     loadProducts()
   }
@@ -60,37 +91,62 @@ export default function ProductsPage() {
     loadProducts()
   }
 
+  async function handleCsv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const rows = results.data as Record<string, string>[]
+        for (const row of rows) {
+          await supabase.from('products').insert([{
+            tenant_id: OR_TENANT,
+            jan_code: row.jan_code || null,
+            name: row.name || '',
+            weight_g: row.weight_g ? parseFloat(row.weight_g) : null,
+            category: row.category || null,
+            price_per_100g: row.price_per_100g ? parseFloat(row.price_per_100g) : null,
+            is_active: true,
+          }])
+        }
+        loadProducts()
+      }
+    })
+  }
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>商品管理</h1>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={() => fileRef.current?.click()} style={{ padding: '0.5rem 1rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer' }}>📥 CSV取込</button>
-          <input ref={fileRef} type='file' accept='.csv' style={{ display: 'none' }} />
-          <button onClick={() => { setShowForm(true); setError(''); setSuccess('') }} style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>＋ 新規登録</button>
+          <button onClick={() => fileRef.current?.click()} style={{ padding: '0.5rem 1rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer' }}>CSVインポート</button>
+          <input ref={fileRef} type='file' accept='.csv' style={{ display: 'none' }} onChange={handleCsv} />
+          <button onClick={() => { setEditId(null); setForm({ jan_code: '', name: '', weight_g: '', category: '', price_per_100g: '' }); setError(''); setSuccess(''); setShowForm(true) }} style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>新規登録</button>
         </div>
       </div>
       {success && <div style={{ padding: '0.75rem', background: '#eff6ff', borderRadius: 6, marginBottom: '1rem', color: '#1d4ed8' }}>{success}</div>}
-      {error && <div style={{ padding: '0.75rem', background: '#fef2f2', borderRadius: 6, marginBottom: '1rem', color: '#dc2626' }}>エラー：{error}</div>}
+      {error && <div style={{ padding: '0.75rem', background: '#fef2f2', borderRadius: 6, marginBottom: '1rem', color: '#dc2626' }}>エラー: {error}</div>}
       {showForm && (
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, padding: '1.5rem', marginBottom: '1rem' }}>
-          <h2 style={{ fontWeight: 'bold', marginBottom: '1rem' }}>新規商品</h2>
+          <h2 style={{ fontWeight: 'bold', marginBottom: '1rem' }}>{editId ? '商品を編集' : '新規商品登録'}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>コード</label><input type='text' placeholder='RICE-5KG' value={form.jan_code} onChange={e => setForm(f => ({ ...f, jan_code: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
-            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>商品名*</label><input type='text' placeholder='九州産ひのひかり無洗米５㎏' value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
-            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>単位・ロット</label><input type='text' placeholder='5㎏×6袋' value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
+            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>コード</label><input type='text' value={form.jan_code} onChange={e => setForm(f => ({ ...f, jan_code: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
+            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>商品名*</label><input type='text' value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
+            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>カテゴリ</label><input type='text' value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
             <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>単価</label><input type='text' placeholder='0' value={form.price_per_100g} onChange={e => setForm(f => ({ ...f, price_per_100g: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
             <button onClick={handleSave} style={{ padding: '0.5rem 1.5rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>保存</button>
-            <button onClick={() => setShowForm(false)} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer' }}>キャンセル</button>
+            <button onClick={cancelForm} style={{ padding: '0.5rem 1rem', background: 'white', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer' }}>キャンセル</button>
           </div>
-        </div>)}
+        </div>
+      )}
       <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: 8, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
         <thead><tr style={{ background: '#f9fafb' }}>
           <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>コード</th>
           <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>商品名</th>
-          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>単位・ロット</th>
+          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>カテゴリ</th>
           <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>単価</th>
           <th style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e5e7eb' }}></th>
         </tr></thead>
@@ -103,9 +159,14 @@ export default function ProductsPage() {
               <td style={{ padding: '0.75rem 1rem', fontWeight: 500 }}>{p.name}</td>
               <td style={{ padding: '0.75rem 1rem', color: '#6b7280' }}>{p.category || '-'}</td>
               <td style={{ padding: '0.75rem 1rem', color: '#6b7280' }}>{p.price_per_100g != null ? p.price_per_100g.toLocaleString() : '-'}</td>
-              <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}><button onClick={() => handleDelete(p.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>削除</button></td>
-            </tr>))}
+              <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                <button onClick={() => startEdit(p)} style={{ color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem', marginRight: '0.75rem' }}>編集</button>
+                <button onClick={() => handleDelete(p.id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}>削除</button>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
-    </div>)
+    </div>
+  )
 }
