@@ -73,7 +73,7 @@ export default function NewOrderPage() {
       product_id: i.product_id,
       quantity: Number(i.quantity),
       unit_price: i.unit_price ? Number(i.unit_price) : null,
-      amount: i.unit_price && i.quantity ? Number(i.unit_price) * Number(i.quantity) : null,
+      amount: Number(i.unit_price || 0) * Number(i.quantity || 0),
       notes: i.notes,
       sort_order: idx
     }))
