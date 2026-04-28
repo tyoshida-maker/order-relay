@@ -11,13 +11,13 @@ export default function PartnerOrdersPage() {
     const load = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
-      const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', session.user.id).single()
+      const { data: profile } = await supabase.from('or_user_profiles').select('*').eq('id', session.user.id).single()
       if (!profile?.company_id) { setLoading(false); return }
       setCompanyId(profile.company_id)
       const { data } = await supabase
         .from('orders')
-        .select(`*, order_items(*, products(name, jan_code)), flows(name)`)
-        .or(`from_company_id.eq.${profile.company_id}`)
+        .select('*, order_items(*, products(name, jan_code)), flows(name)')
+        .eq('from_company_id', profile.company_id)
         .order('order_date', { ascending: false })
       setOrders(data || [])
       setLoading(false)
@@ -35,7 +35,7 @@ export default function PartnerOrdersPage() {
         <div className="text-center py-8 text-gray-400">発注がありません</div>
       ) : (
         <div className="space-y-3">
-          {orders.map(o => (
+          {orders.map((o: any) => (
             <div key={o.id} className="border rounded-lg p-4 bg-white">
               <div className="flex justify-between items-start">
                 <div>
