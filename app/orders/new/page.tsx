@@ -23,7 +23,7 @@ export default function NewOrderPage() {
   useEffect(() => {
     Promise.all([
       supabase.from('companies').select('*').order('name'),
-      supabase.from('products').select('*').order('name'),
+      supabase.from('products').select('*').eq('tenant_id','00000000-0000-0000-0000-000000000001').order('name'),
       supabase.from('flows').select('*').order('name'),
       supabase.from('price_rules').select('*')
     ]).then(([cd, pd, fd, prd]) => {
@@ -42,7 +42,7 @@ export default function NewOrderPage() {
   const updateItem = (i: number, key: string, val: string) => {
     const newItems = [...items]
     newItems[i] = { ...newItems[i], [key]: val }
-    if (key === 'product_id' && form.from_company_id) {
+    if (key === 'product_id' && val) {
       newItems[i].unit_price = getUnitPrice(form.from_company_id, val)
     }
     setItems(newItems)
@@ -73,6 +73,7 @@ export default function NewOrderPage() {
       product_id: i.product_id,
       quantity: Number(i.quantity),
       unit_price: i.unit_price ? Number(i.unit_price) : null,
+      amount: i.unit_price && i.quantity ? Number(i.unit_price) * Number(i.quantity) : null,
       notes: i.notes,
       sort_order: idx
     }))
@@ -118,25 +119,25 @@ export default function NewOrderPage() {
         {items.map((item, i) => (
           <div key={i} className="flex gap-2 items-end">
             <div className="flex-1">
-              {i===0 && <label className="label text-xs">商品</label>}
+              <label className="text-xs text-gray-500">商品</label>
               <select className="input-field" value={item.product_id} onChange={e => updateItem(i,'product_id',e.target.value)}>
                 <option value="">選択</option>
                 {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div className="w-24">
-              {i===0 && <label className="label text-xs">数量</label>}
+              <label className="text-xs text-gray-500">数量</label>
               <input type="number" className="input-field" value={item.quantity} onChange={e => updateItem(i,'quantity',e.target.value)} min="0" step="0.001" />
             </div>
             <div className="w-28">
-              {i===0 && <label className="label text-xs">単価</label>}
+              <label className="text-xs text-gray-500">単価</label>
               <input type="number" className="input-field" value={item.unit_price} onChange={e => updateItem(i,'unit_price',e.target.value)} placeholder="自動" />
             </div>
             <div className="flex-1">
-              {i===0 && <label className="label text-xs">備考</label>}
+              <label className="text-xs text-gray-500">備考</label>
               <input className="input-field" value={item.notes} onChange={e => updateItem(i,'notes',e.target.value)} />
             </div>
-            {items.length > 1 && <button onClick={() => setItems(items.filter((_,j)=>j!==i))} className="text-red-500 pb-2">✕</button>}
+            {i > 0 && <button onClick={() => setItems(items.filter((_,j) => j !== i))} className="text-red-500 text-sm mb-1">削除</button>}
           </div>
         ))}
       </div>
