@@ -92,7 +92,7 @@ export default function OrderDetailPage() {
           count++
         }
       }
-      setGenMsg(count + ' 個のドキュメントを開きました')
+      setGenMsg(count + '個のドキュメントを開きました')
     } catch (e) {
       setGenMsg('エラー: ' + String(e))
     }
