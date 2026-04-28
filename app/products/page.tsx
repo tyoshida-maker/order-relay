@@ -33,6 +33,7 @@ export default function ProductsPage() {
   async function handleSave() {
     if (!form.name) { setError('商品名は必須です'); return }
     const payload = {
+      tenant_id: '4873f0e8-f10c-4671-a2c2-37d8228dd9da',
       jan_code: form.jan_code || null,
       name: form.name,
       weight_g: form.weight_g ? parseFloat(form.weight_g) : null,
@@ -54,14 +55,6 @@ export default function ProductsPage() {
     loadProducts()
   }
 
-  const labelMap: {label: string, key: keyof typeof form, placeholder: string}[] = [
-    { label: 'コード（JAN等）', key: 'jan_code', placeholder: 'RICE-5KG など' },
-    { label: '商品名*', key: 'name', placeholder: '九州産ひのひかり無洗米５㎏' },
-    { label: '単位・ロット', key: 'category', placeholder: '5㎏×6袋' },
-    { label: '重量(g)', key: 'weight_g', placeholder: '5000' },
-    { label: '単価', key: 'price_per_100g', placeholder: '0' },
-  ]
-
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -78,11 +71,11 @@ export default function ProductsPage() {
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, padding: '1.5rem', marginBottom: '1rem' }}>
           <h2 style={{ fontWeight: 'bold', marginBottom: '1rem' }}>新規商品</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            {labelMap.map(({ label, key, placeholder }) => (
-              <div key={key}>
-                <label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>{label}</label>
-                <input type='text' placeholder={placeholder} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} />
-              </div>);)}
+            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>コード（JAN等）</label><input type='text' placeholder='RICE-5KG' value={form.jan_code} onChange={e => setForm(f => ({ ...f, jan_code: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
+            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>商品名*</label><input type='text' placeholder='九州産ひのひかり無洗米５㎏' value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
+            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>単位・ロット</label><input type='text' placeholder='5㎏×6袋' value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
+            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>重量(g)</label><input type='text' placeholder='5000' value={form.weight_g} onChange={e => setForm(f => ({ ...f, weight_g: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
+            <div><label style={{ display: 'block', fontSize: '0.875rem', marginBottom: '0.25rem' }}>単価</label><input type='text' placeholder='0' value={form.price_per_100g} onChange={e => setForm(f => ({ ...f, price_per_100g: e.target.value }))} style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' as const }} /></div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
             <button onClick={handleSave} style={{ padding: '0.5rem 1.5rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>保存</button>
@@ -91,8 +84,11 @@ export default function ProductsPage() {
         </div>)}
       <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: 8, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
         <thead><tr style={{ background: '#f9fafb' }}>
-          {['コード', '商品名', '単位・ロット', '単価', ''].map(h => (
-            <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>{h}</th>))}
+          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>コード</th>
+          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>商品名</th>
+          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>単位・ロット</th>
+          <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.875rem', color: '#374151', borderBottom: '1px solid #e5e7eb' }}>単価</th>
+          <th style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #e5e7eb' }}></th>
         </tr></thead>
         <tbody>
           {loading ? (<tr><td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>読み込み中...</td></tr>)
