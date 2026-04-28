@@ -61,7 +61,7 @@ export default function OrdersPage() {
       </div>
       {orders.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">{'\u{1F4E6}'}</p>
+          <p className="text-4xl mb-3">{'📦'}</p>
           <p>{LABELS.noOrders}</p>
           <Link href="/orders/new" className="mt-4 inline-block text-blue-600 hover:underline">{LABELS.createFirst}</Link>
         </div>
