@@ -5,6 +5,24 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 const supabase = createClientComponentClient()
 
+const LABELS = {
+  title: '発注一覧',
+  newOrder: '新規発注',
+  noOrders: '発注がまだありません',
+  createFirst: '最初の発注を作成する',
+  orderNo: '発注番号',
+  fromCompany: '発注元',
+  flow: '商流',
+  orderDate: '発注日',
+  deliveryDate: '納品希望日',
+  status: 'ステータス',
+  detail: '詳細',
+  completed: '全承認完了',
+  confirmed: '確定済',
+  approving: '承認中',
+  waitApproval: '承認待ち',
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,27 +40,15 @@ export default function OrdersPage() {
 
   const getStatusBadge = (order: any) => {
     if (order.status === 'completed') {
-      return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">✅ 全承認完了</span>
+      return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{'✅ ' + LABELS.completed}</span>
     }
     const steps: any[] = order.flows?.steps || []
     const totalSteps = steps.length
     if (totalSteps === 0) {
-      return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">確定済</span>
+      return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{LABELS.confirmed}</span>
     }
     const approvedCount = (order.approved_steps || []).length
-    return (
-      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-        ⏳ {approvedCount}/{totalSteps} 承認中
-      </span>
-    )
-  }
-
-  const getCurrentStepName = (order: any) => {
-    if (order.status === 'completed') return '-'
-    const steps: any[] = order.flows?.steps || []
-    const currentStep: number = order.current_step ?? 0
-    if (steps.length === 0 || currentStep >= steps.length) return '-'
-    return steps[currentStep]?.company_name || '承認待ち'
+    return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">{'⏳ ' + approvedCount + '/' + totalSteps + ' ' + LABELS.approving}</span>
   }
 
   if (loading) return <div className="flex items-center justify-center h-40"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
@@ -50,27 +56,27 @@ export default function OrdersPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">発注一覧</h1>
-        <Link href="/orders/new" className="btn-primary">+ 新規発注</Link>
+        <h1 className="text-2xl font-bold">{LABELS.title}</h1>
+        <Link href="/orders/new" className="btn-primary">{'+ ' + LABELS.newOrder}</Link>
       </div>
       {orders.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">📦</p>
-          <p>発注がまだありません</p>
-          <Link href="/orders/new" className="mt-4 inline-block text-blue-600 hover:underline">最初の発注を作成する</Link>
+          <p className="text-4xl mb-3">{'\u{1F4E6}'}</p>
+          <p>{LABELS.noOrders}</p>
+          <Link href="/orders/new" className="mt-4 inline-block text-blue-600 hover:underline">{LABELS.createFirst}</Link>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">発注番号</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">発注元</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">商流</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">発注日</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">納品希望日</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">ステータス</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">操作</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">{LABELS.orderNo}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">{LABELS.fromCompany}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">{LABELS.flow}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">{LABELS.orderDate}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">{LABELS.deliveryDate}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">{LABELS.status}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">{LABELS.detail}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -83,7 +89,7 @@ export default function OrdersPage() {
                   <td className="px-4 py-3 text-sm text-gray-600">{order.delivery_date || '-'}</td>
                   <td className="px-4 py-3">{getStatusBadge(order)}</td>
                   <td className="px-4 py-3">
-                    <Link href={`/orders/${order.id}`} className="text-blue-600 hover:underline text-sm">詳細</Link>
+                    <Link href={'/orders/' + order.id} className="text-blue-600 hover:underline text-sm">{LABELS.detail}</Link>
                   </td>
                 </tr>
               ))}
