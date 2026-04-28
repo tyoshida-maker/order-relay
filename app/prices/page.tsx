@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase, Company, Product, PriceRule } from '@/lib/supabase'
 import Papa from 'papaparse'
 
-type PriceWithRelations = PriceRule & { companies?: { name: string } | null; products?: { name: string; category: string } | null }
+type PriceWithRelations = PriceRule & { companies?: { name: string } | null; products?: { name: string } | null }
 
 export default function PricesPage() {
   const [prices, setPrices] = useState<PriceWithRelations[]>([])
@@ -17,7 +17,7 @@ export default function PricesPage() {
   const load = async () => {
     setLoading(true)
     const [pd, cd, prd] = await Promise.all([
-      supabase.from('price_rules').select('*, companies(name), products(name,category)').order('created_at', { ascending: false }),
+      supabase.from('price_rules').select('*, companies(name), products(name)').order('created_at', { ascending: false }),
       supabase.from('companies').select('*').order('name'),
       supabase.from('products').select('*').eq('tenant_id','00000000-0000-0000-0000-000000000001').order('name')
     ])
@@ -53,7 +53,7 @@ export default function PricesPage() {
           const price = r.unit_price || r['単価'] || ''
           if (!compName || !prodCode || !price) continue
           const comp = companies.find(c => c.name === compName || c.short_name === compName)
-          const prod = products.find(p => p.jan_code === prodCode)
+          const prod = products.find(p => p.code === prodCode || p.name === prodCode)
           if (!comp || !prod) continue
           await supabase.from('price_rules').upsert({
             company_id: comp.id, product_id: prod.id,
@@ -74,7 +74,7 @@ export default function PricesPage() {
         <h1 className="text-2xl font-bold">価格管理</h1>
         <div className="flex gap-2">
           <label className="btn-secondary cursor-pointer">
-            📄 CSV取込
+            CSV取込
             <input type="file" accept=".csv" className="hidden" onChange={handleCsv} />
           </label>
           <button onClick={() => setShowForm(!showForm)} className="btn-primary">+ 新規登録</button>
@@ -127,7 +127,7 @@ export default function PricesPage() {
               <tr key={p.id} className="border-b hover:bg-gray-50">
                 <td className="p-2">{p.companies?.name}</td>
                 <td className="p-2">{p.products?.name}</td>
-                <td className="p-2 text-right font-mono">¥{p.unit_price.toLocaleString()}</td>
+                <td className="p-2 text-right font-mono">&yen;{p.unit_price.toLocaleString()}</td>
                 <td className="p-2 text-gray-500">{p.valid_from}</td>
               </tr>
             ))}
