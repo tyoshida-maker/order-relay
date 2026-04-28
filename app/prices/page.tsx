@@ -17,9 +17,9 @@ export default function PricesPage() {
   const load = async () => {
     setLoading(true)
     const [pd, cd, prd] = await Promise.all([
-      supabase.from('price_rules').select('*, companies(name), products(name,code)').order('created_at', { ascending: false }),
+      supabase.from('price_rules').select('*, companies(name), products(name,category)').order('created_at', { ascending: false }),
       supabase.from('companies').select('*').order('name'),
-      supabase.from('products').select('*').order('name')
+      supabase.from('products').select('*').eq('tenant_id','00000000-0000-0000-0000-000000000001').order('name')
     ])
     setPrices((pd.data || []) as PriceWithRelations[])
     setCompanies(cd.data || [])
@@ -30,10 +30,10 @@ export default function PricesPage() {
   useEffect(() => { load() }, [])
 
   const save = async () => {
-    if (!form.company_id || !form.product_id || !form.unit_price) return setMsg('必須項目を入力してください')
+    if (!form.company_id || !form.product_id || !form.unit_price) return setMsg('å¿é é ç®ãå¥åãã¦ãã ãã')
     const { error } = await supabase.from('price_rules').insert({ ...form, unit_price: Number(form.unit_price) })
-    if (error) return setMsg('エラー: ' + error.message)
-    setMsg('登録しました')
+    if (error) return setMsg('ã¨ã©ã¼: ' + error.message)
+    setMsg('ç»é²ãã¾ãã')
     setShowForm(false)
     load()
   }
@@ -48,9 +48,9 @@ export default function PricesPage() {
         const rows = results.data as Record<string, string>[]
         let ok = 0
         for (const r of rows) {
-          const compName = r.company_name || r['取引先名'] || ''
-          const prodCode = r.product_code || r['商品コード'] || ''
-          const price = r.unit_price || r['単価'] || ''
+          const compName = r.company_name || r['åå¼åå'] || ''
+          const prodCode = r.product_code || r['ååã³ã¼ã'] || ''
+          const price = r.unit_price || r['åä¾¡'] || ''
           if (!compName || !prodCode || !price) continue
           const comp = companies.find(c => c.name === compName || c.short_name === compName)
           const prod = products.find(p => p.code === prodCode)
@@ -58,11 +58,11 @@ export default function PricesPage() {
           await supabase.from('price_rules').upsert({
             company_id: comp.id, product_id: prod.id,
             unit_price: Number(price),
-            valid_from: r.valid_from || r['有効開始日'] || new Date().toISOString().split('T')[0]
+            valid_from: r.valid_from || r['æå¹éå§æ¥'] || new Date().toISOString().split('T')[0]
           }, { onConflict: 'company_id,product_id,valid_from' })
           ok++
         }
-        setMsg(ok + '件インポートしました')
+        setMsg(ok + 'ä»¶ã¤ã³ãã¼ããã¾ãã')
         load()
       }
     })
@@ -71,67 +71,67 @@ export default function PricesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">価格管理</h1>
+        <h1 className="text-2xl font-bold">ä¾¡æ ¼ç®¡ç</h1>
         <div className="flex gap-2">
           <label className="btn-secondary cursor-pointer">
-            📤 CSV取込
+            ð¤ CSVåè¾¼
             <input type="file" accept=".csv" className="hidden" onChange={handleCsv} />
           </label>
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary">＋ 新規登録</button>
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary">ï¼ æ°è¦ç»é²</button>
         </div>
       </div>
       {msg && <div className="mb-3 p-2 bg-blue-50 text-blue-700 rounded text-sm">{msg}</div>}
       {showForm && (
         <div className="bg-gray-50 border rounded-lg p-4 mb-4">
-          <h2 className="font-semibold mb-3">価格ルール登録</h2>
+          <h2 className="font-semibold mb-3">ä¾¡æ ¼ã«ã¼ã«ç»é²</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm text-gray-600">取引先*</label>
+              <label className="text-sm text-gray-600">åå¼å*</label>
               <select className="input-field mt-1" value={form.company_id} onChange={e => setForm({...form, company_id: e.target.value})}>
-                <option value="">選択</option>
+                <option value="">é¸æ</option>
                 {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-sm text-gray-600">商品*</label>
+              <label className="text-sm text-gray-600">åå*</label>
               <select className="input-field mt-1" value={form.product_id} onChange={e => setForm({...form, product_id: e.target.value})}>
-                <option value="">選択</option>
+                <option value="">é¸æ</option>
                 {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-sm text-gray-600">単価*</label>
+              <label className="text-sm text-gray-600">åä¾¡*</label>
               <input type="number" className="input-field mt-1" value={form.unit_price} onChange={e => setForm({...form, unit_price: e.target.value})} />
             </div>
             <div>
-              <label className="text-sm text-gray-600">有効開始日</label>
+              <label className="text-sm text-gray-600">æå¹éå§æ¥</label>
               <input type="date" className="input-field mt-1" value={form.valid_from} onChange={e => setForm({...form, valid_from: e.target.value})} />
             </div>
           </div>
           <div className="mt-3 flex gap-2">
-            <button onClick={save} className="btn-primary">保存</button>
-            <button onClick={() => setShowForm(false)} className="btn-secondary">キャンセル</button>
+            <button onClick={save} className="btn-primary">ä¿å­</button>
+            <button onClick={() => setShowForm(false)} className="btn-secondary">ã­ã£ã³ã»ã«</button>
           </div>
         </div>
       )}
-      {loading ? <div className="text-center py-8 text-gray-500">読み込み中...</div> : (
+      {loading ? <div className="text-center py-8 text-gray-500">èª­ã¿è¾¼ã¿ä¸­...</div> : (
         <table className="w-full text-sm">
           <thead><tr className="bg-gray-100">
-            <th className="p-2 text-left">取引先</th>
-            <th className="p-2 text-left">商品</th>
-            <th className="p-2 text-right">単価</th>
-            <th className="p-2 text-left">有効開始日</th>
+            <th className="p-2 text-left">åå¼å</th>
+            <th className="p-2 text-left">åå</th>
+            <th className="p-2 text-right">åä¾¡</th>
+            <th className="p-2 text-left">æå¹éå§æ¥</th>
           </tr></thead>
           <tbody>
             {prices.map(p => (
               <tr key={p.id} className="border-b hover:bg-gray-50">
                 <td className="p-2">{p.companies?.name}</td>
                 <td className="p-2">{p.products?.name}</td>
-                <td className="p-2 text-right font-mono">¥{p.unit_price.toLocaleString()}</td>
+                <td className="p-2 text-right font-mono">Â¥{p.unit_price.toLocaleString()}</td>
                 <td className="p-2 text-gray-500">{p.valid_from}</td>
               </tr>
             ))}
-            {prices.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-gray-400">価格が登録されていません</td></tr>}
+            {prices.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-gray-400">ä¾¡æ ¼ãç»é²ããã¦ãã¾ãã</td></tr>}
           </tbody>
         </table>
       )}
