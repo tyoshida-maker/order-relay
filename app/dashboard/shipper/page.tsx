@@ -131,4 +131,4 @@ export default function ShipperDashboard() {
                               </div>
                         </div>
                       )
-                    }</span>
+}
