@@ -61,10 +61,10 @@ export default function IntermediaryDashboard() {
   }, [router])
 
   const getStatusBadge = (status: string, step: number | null) => {
-        if (status === 'completed') return <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700">\u7d0d\u54c1\u5b8c\u4e86</span>span>
-              if (status === 'approved') return <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">\u51fa\u8377\u4f9d\u983c\u6e08</span>span>
-              if (status === 'issue') return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">\u554f\u984c\u6848\u4ef6</span>span>
-              return <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700">\u627f\u8a8d\u5f85\u3061</span>span>
+        if (status === 'completed') return <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700">\u7d0d\u54c1\u5b8c\u4e86</span>
+              if (status === 'approved') return <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">\u51fa\u8377\u4f9d\u983c\u6e08</span>
+              if (status === 'issue') return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">\u554f\u984c\u6848\u4ef6</span>
+              return <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700">\u627f\u8a8d\u5f85\u3061</span>
           }
     
       const handleApprove = async (orderId: string) => {
@@ -120,10 +120,10 @@ export default function IntermediaryDashboard() {
                                   <div className="flex items-center justify-between mb-6">
                                             <h1 className="text-2xl font-bold text-gray-800">\u30c0\u30c3\u30b7\u30e5\u30dc\u30fc\u30c9</h1>h1>
                                             <div className="flex items-center gap-4">
-                                                        <span className="text-sm text-gray-500">{new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</span>span>
+                                                        <span className="text-sm text-gray-500">{new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</span>
                                                         <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2">
                                                                       <div className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center text-xs">\ud83d\udc64</div>div>
-                                                                      <span className="text-sm font-medium">{userName}</span>span>
+                                                                      <span className="text-sm font-medium">{userName}</span>
                                                         </div>div>
                                             </div>div>
                                   </div>div>
@@ -132,25 +132,25 @@ export default function IntermediaryDashboard() {
                                   <div className="grid grid-cols-4 gap-4 mb-6">
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-500">
                                                         <div className="text-xs text-gray-500 mb-1">\u65b0\u898f\u6ce8\u6587</div>div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.newOrders}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span>span></div>div>
+                                                        <div className="text-3xl font-bold text-gray-800">{stats.newOrders}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>div>
                                                         <div className="text-xs text-gray-400 mt-1">\u672c\u65e5\u53d7\u4fe1</div>div>
                                                         <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
                                             </div>div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-500">
                                                         <div className="text-xs text-gray-500 mb-1">\u627f\u8a8d\u5f85\u3061</div>div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.pendingApproval}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span>span></div>div>
+                                                        <div className="text-3xl font-bold text-gray-800">{stats.pendingApproval}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>div>
                                                         <div className="text-xs text-gray-400 mt-1">\u78ba\u8a8d\u304c\u5fc5\u8981</div>div>
                                                         <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
                                             </div>div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
                                                         <div className="text-xs text-gray-500 mb-1">\u51fa\u8377\u4f9d\u983c\u6e08</div>div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.shippingRequested}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span>span></div>div>
+                                                        <div className="text-3xl font-bold text-gray-800">{stats.shippingRequested}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>div>
                                                         <div className="text-xs text-gray-400 mt-1">\u4e5d\u5dde\u98df\u7ce7\u306b\u4f9d\u983c\u6e08</div>div>
                                                         <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
                                             </div>div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-500">
                                                         <div className="text-xs text-gray-500 mb-1">\u554f\u984c\u6848\u4ef6</div>div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.issues}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span>span></div>div>
+                                                        <div className="text-3xl font-bold text-gray-800">{stats.issues}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>div>
                                                         <div className="text-xs text-gray-400 mt-1">\u5bfe\u5fdc\u304c\u5fc5\u8981</div>div>
                                                         <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
                                             </div>div>
@@ -210,16 +210,16 @@ export default function IntermediaryDashboard() {
                                                                       <h2 className="font-semibold text-gray-800 mb-3">\u8acb\u6c42\u30b5\u30de\u30ea\u30fc\uff08\u4eca\u6708\uff09</h2>h2>
                                                                       <div className="space-y-3">
                                                                                       <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                                                                                        <span className="text-sm text-gray-600">\u4eca\u6708\u306e\u8acb\u6c42\u984d</span>span>
-                                                                                                        <span className="font-bold text-gray-800">\uffe5{totalAmount.toLocaleString()}</span>span>
+                                                                                                        <span className="text-sm text-gray-600">\u4eca\u6708\u306e\u8acb\u6c42\u984d</span>
+                                                                                                        <span className="font-bold text-gray-800">\uffe5{totalAmount.toLocaleString()}</span>
                                                                                         </div>div>
                                                                                       <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                                                                                                        <span className="text-sm text-gray-600">\u672a\u5165\u91d1\u984d</span>span>
-                                                                                                        <span className="font-bold text-yellow-700">\uffe5-</span>span>
+                                                                                                        <span className="text-sm text-gray-600">\u672a\u5165\u91d1\u984d</span>
+                                                                                                        <span className="font-bold text-yellow-700">\uffe5-</span>
                                                                                         </div>div>
                                                                                       <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                                                                                                        <span className="text-sm text-gray-600">\u5165\u91d1\u6e08\u307f\u984d</span>span>
-                                                                                                        <span className="font-bold text-green-700">\uffe5-</span>span>
+                                                                                                        <span className="text-sm text-gray-600">\u5165\u91d1\u6e08\u307f\u984d</span>
+                                                                                                        <span className="font-bold text-green-700">\uffe5-</span>
                                                                                         </div>div>
                                                                       </div>div>
                                                         </div>div>
@@ -239,11 +239,11 @@ export default function IntermediaryDashboard() {
                                                           <div key={i} className="flex items-center justify-between text-xs">
                                                                               <div className="flex items-center gap-2">
                                                                                                     <div className={`w-2 h-2 rounded-full ${step.color}`}></div>div>
-                                                                                                    <span className="text-gray-700">{step.label}</span>span>
+                                                                                                    <span className="text-gray-700">{step.label}</span>
                                                                               </div>div>
                                                                               <div className="flex items-center gap-2">
-                                                                                                    <span className="font-bold">{step.count}\u4ef6</span>span>
-                                                                                                    <span className={`px-1.5 py-0.5 rounded text-xs ${step.status === '\u5b8c\u4e86' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{step.status}</span>span>
+                                                                                                    <span className="font-bold">{step.count}\u4ef6</span>
+                                                                                                    <span className={`px-1.5 py-0.5 rounded text-xs ${step.status === '\u5b8c\u4e86' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{step.status}</span>
                                                                               </div>div>
                                                           </div>div>
                                                         ))}
