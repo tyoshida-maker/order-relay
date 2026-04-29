@@ -1,257 +1,351 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import {
+  PieChart, Pie, Cell,
+  Tooltip, ResponsiveContainer, Legend
+} from 'recharts'
 
-type Order = {
-    id: string
-    order_no: string
-    order_date: string
-    delivery_date: string | null
-    status: string
-    current_step: number | null
-    companies: { name: string } | null
-    order_items: { quantity: number; unit_price: number | null; products: { name: string } | null }[]
+type Period = 'today' | 'week' | 'month' | 'all'
+
+type FlowStep = { role: string; company_id: string; label?: string; step?: number }
+
+type Stats = {
+  involved: number
+  awaitingMe: number
+  myProcessedThisMonth: number
+  completedInvolved: number
 }
 
+type OrderRow = {
+  id: string
+  order_no: string
+  status: string
+  current_step: number
+  approved_steps: number[]
+  flow_id: string | null
+  delivery_date: string | null
+  myStepIndex: number | null
+  isMyTurn: boolean
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: '下書き', confirmed: '確認済み', in_progress: '進行中',
+  completed: '完了', cancelled: 'キャンセル',
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  confirmed: 'bg-blue-100 text-blue-700',
+  in_progress: 'bg-amber-100 text-amber-700',
+  completed: 'bg-green-100 text-green-700',
+  cancelled: 'bg-red-100 text-red-700',
+}
+
+const PIE_COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#a855f7']
+
 export default function IntermediaryDashboard() {
-    const router = useRouter()
-    const [orders, setOrders] = useState<Order[]>([])
-    const [loading, setLoading] = useState(true)
-    const [userName, setUserName] = useState('')
-    const [stats, setStats] = useState({ newOrders: 0, pendingApproval: 0, shippingRequested: 0, issues: 0 })
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [userEmail, setUserEmail] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [companyId, setCompanyId] = useState<string | null>(null)
+  const [companyName, setCompanyName] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [period, setPeriod] = useState<Period>('month')
+  const [stats, setStats] = useState<Stats>({ involved: 0, awaitingMe: 0, myProcessedThisMonth: 0, completedInvolved: 0 })
+  const [statusBreakdown, setStatusBreakdown] = useState<{ name: string; value: number }[]>([])
+  const [orders, setOrders] = useState<OrderRow[]>([])
 
   useEffect(() => {
-        const load = async () => {
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) { router.push('/login'); return }
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.push('/login'); return }
 
-                const { data: profile } = await supabase
-                  .from('or_user_profiles')
-                  .select('name, role')
-                  .eq('id', user.id)
-                  .single()
+      const { data: profile } = await supabase
+        .from('or_user_profiles')
+        .select('role, company_id, display_name')
+        .eq('id', user.id)
+        .single()
 
-                if (profile?.role !== 'admin' && profile?.role !== 'intermediary') {
-                          router.push('/')
-                          return
-                }
-                setUserName(profile?.name || user.email || '')
+      if (!profile) { router.push('/login'); return }
 
-                const { data: orderData } = await supabase
-                  .from('orders')
-                  .select('id, order_no, order_date, delivery_date, status, current_step, companies(name), order_items(quantity, unit_price, products(name))')
-                  .order('order_date', { ascending: false })
-                  .limit(20)
+      const allowed = ['admin', 'intermediary', 'partner']
+      if (!allowed.includes(profile.role)) { router.push('/login'); return }
 
-                const list = (orderData || []) as Order[]
-                setOrders(list)
+      setUserEmail(user.email || '')
+      setDisplayName(profile.display_name || '')
+      setIsAdmin(profile.role === 'admin')
+      setCompanyId(profile.company_id)
 
-                const today = new Date().toISOString().split('T')[0]
-                setStats({
-                          newOrders: list.filter(o => o.order_date.startsWith(today)).length,
-                          pendingApproval: list.filter(o => o.status === 'pending' || o.current_step === 0).length,
-                          shippingRequested: list.filter(o => o.status === 'approved').length,
-                          issues: list.filter(o => o.status === 'issue').length,
-                })
-                setLoading(false)
-        }
-        load()
+      if (profile.company_id) {
+        const { data: company } = await supabase
+          .from('companies').select('name').eq('id', profile.company_id).single()
+        setCompanyName(company?.name || '')
+      } else {
+        setCompanyName('全社（管理者）')
+      }
+
+      setLoading(false)
+    }
+    init()
   }, [router])
 
-  const getStatusBadge = (status: string, step: number | null) => {
-        if (status === 'completed') return <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700">納品完了</span>
-              if (status === 'approved') return <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">出荷依頼済</span>
-              if (status === 'issue') return <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">問題案件</span>
-              return <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700">承認待ち</span>
-          }
-    
-      const handleApprove = async (orderId: string) => {
-            const res = await fetch('/api/approve-order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ orderId, step: 1 }),
-            })
-                  const data = await res.json()
-                        if (data.success) {
-                                alert('承認メールを送信しました')
-                        }
+  useEffect(() => {
+    if (loading) return
+    fetchData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, period, companyId, isAdmin])
+
+  const getPeriodFilter = (): string | null => {
+    const now = new Date()
+    if (period === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+    if (period === 'week') return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    return null
+  }
+
+  const fetchData = async () => {
+    setStatsLoading(true)
+    try {
+      const periodFilter = getPeriodFilter()
+
+      const { data: flowsAll } = await supabase
+        .from('flows').select('id, name, steps')
+
+      const myFlowMap: Record<string, number> = {}
+      ;(flowsAll || []).forEach((f: any) => {
+        const steps: FlowStep[] = Array.isArray(f.steps) ? f.steps : []
+        if (isAdmin) {
+          myFlowMap[f.id] = -1
+        } else if (companyId) {
+          const idx = steps.findIndex(s => s.company_id === companyId)
+          if (idx >= 0) myFlowMap[f.id] = idx
+        }
+      })
+
+      const myFlowIds = Object.keys(myFlowMap)
+
+      if (myFlowIds.length === 0 && !isAdmin) {
+        setStats({ involved: 0, awaitingMe: 0, myProcessedThisMonth: 0, completedInvolved: 0 })
+        setStatusBreakdown([])
+        setOrders([])
+        setStatsLoading(false)
+        return
       }
-        
-          if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>
-            
-              const totalAmount = orders.reduce((sum, o) => {
-                return sum + o.order_items.reduce((s, i) => s + (i.unit_price || 0) * i.quantity, 0)
-          }, 0)
-            
-              return (
-                    <div className="min-h-screen bg-gray-50 flex">
-                      {/* Sidebar */}
-                          <div className="w-56 bg-gray-900 text-white flex flex-col fixed h-full z-10">
-                                  <div className="p-4 border-b border-gray-700">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                        <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-sm font-bold">商</div>
-                                                        <div>
-                                                                      <div className="text-sm font-bold">商流OS</div>
-                                                                      <div className="text-xs text-gray-400">中間業者管理画面</div>
-                                                        </div>
-                                            </div>
-                                            <div className="text-xs text-gray-400 mt-1">ゼロテック株式会社</div>
-                                  </div>
-                                  <nav className="flex-1 p-3 space-y-1">
-                                            <div className="px-3 py-2 bg-blue-600 rounded text-sm font-medium">🏠 ダッシュボード</div>
-                                            <Link href="/orders" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">📋 受発注管理</Link>
-                                            <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">📜 納品書管理</Link>
-                                            <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">￥ 請求管理</Link>
-                                            <Link href="/companies" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">🏢 取引先管理</Link>
-                                            <Link href="/products" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">📦 商品管理</Link>
-                                            <Link href="/admin/users" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">⚙️ 設定</Link>
-                            </nav>
-                                  <div className="p-3 border-t border-gray-700">
-                                            <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }}
-                                                          className="w-full px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700 text-left">🚪 ログアウト</button>
-                                  </div>
-                          </div>
-                    
-                      {/* Main */}
-                          <div className="ml-56 flex-1 p-6">
-                            {/* Header */}
-                                  <div className="flex items-center justify-between mb-6">
-                                            <h1 className="text-2xl font-bold text-gray-800">ダッシュボード</h1>
-                                            <div className="flex items-center gap-4">
-                                                        <span className="text-sm text-gray-500">{new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</span>
-                                                        <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2">
-                                                                      <div className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center text-xs">👤</div>
-                                                                      <span className="text-sm font-medium">{userName}</span>
-                                                        </div>
-                                            </div>
-                                  </div>
-                          
-                            {/* Stats Cards */}
-                                  <div className="grid grid-cols-4 gap-4 mb-6">
-                                            <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-500">
-                                                        <div className="text-xs text-gray-500 mb-1">新規注文</div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.newOrders}<span className="text-sm font-normal text-gray-500 ml-1">件</span></div>
-                                                        <div className="text-xs text-gray-400 mt-1">本日受信</div>
-                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">詳細を見る &gt;</Link>
-                                            </div>
-                                            <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-500">
-                                                        <div className="text-xs text-gray-500 mb-1">承認待ち</div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.pendingApproval}<span className="text-sm font-normal text-gray-500 ml-1">件</span></div>
-                                                        <div className="text-xs text-gray-400 mt-1">確認が必要</div>
-                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">詳細を見る &gt;</Link>
-                                            </div>
-                                            <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
-                                                        <div className="text-xs text-gray-500 mb-1">出荷依頼済</div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.shippingRequested}<span className="text-sm font-normal text-gray-500 ml-1">件</span></div>
-                                                        <div className="text-xs text-gray-400 mt-1">九州食糧に依頼済</div>
-                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">詳細を見る &gt;</Link>
-                                            </div>
-                                            <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-500">
-                                                        <div className="text-xs text-gray-500 mb-1">問題案件</div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.issues}<span className="text-sm font-normal text-gray-500 ml-1">件</span></div>
-                                                        <div className="text-xs text-gray-400 mt-1">対応が必要</div>
-                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">詳細を見る &gt;</Link>
-                                            </div>
-                                  </div>
-                          
-                                  <div className="grid grid-cols-3 gap-6">
-                                    {/* Orders Table */}
-                                            <div className="col-span-2 bg-white rounded-xl shadow-sm p-5">
-                                                        <div className="flex items-center justify-between mb-4">
-                                                                      <h2 className="font-semibold text-gray-800">受発注状況（最新一覧）</h2>
-                                                                      <Link href="/orders" className="text-sm text-blue-500">すべての受発注を見る &gt;</Link>
-                                                        </div>
-                                                        <table className="w-full text-sm">
-                                                                      <thead>
-                                                                                      <tr className="border-b text-gray-500 text-xs">
-                                                                                                        <th className="text-left py-2">注文番号</th>
-                                                                                                        <th className="text-left py-2">注文日</th>
-                                                                                                        <th className="text-left py-2">発注者</th>
-                                                                                                        <th className="text-left py-2">商品・数量</th>
-                                                                                                        <th className="text-left py-2">納品希望日</th>
-                                                                                                        <th className="text-left py-2">ステータス</th>
-                                                                                                        <th className="text-left py-2">操作</th>
-                                                                                        </tr>
-                                                                      </thead>
-                                                                      <tbody>
-                                                                        {orders.slice(0, 8).map(order => {
-                                        const item = order.order_items[0]
-                                                            const productName = item?.products?.name || '-'
-                                                                                const qty = item?.quantity || 0
-                                                                                                    return (
-                                                                                                                          <tr key={order.id} className="border-b hover:bg-gray-50">
-                                                                                                                                                <td className="py-2 text-blue-600 font-medium">{order.order_no}</td>
-                                                                                                                                                <td className="py-2 text-gray-600">{order.order_date}</td>
-                                                                                                                                                <td className="py-2 text-gray-700">{order.companies?.name || '-'}</td>
-                                                                                                                                                <td className="py-2 text-gray-700">{productName} {qty}本</td>
-                                                                                                                                                <td className="py-2 text-gray-600">{order.delivery_date || '-'}</td>
-                                                                                                                                                <td className="py-2">{getStatusBadge(order.status, order.current_step)}</td>
-                                                                                                                                                <td className="py-2">
-                                                                                                                                                  {(order.status === 'pending' || order.current_step === 0) ? (
-                                                                                                                                                      <button onClick={() => handleApprove(order.id)}
-                                                                                                                                                                                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">承認</button>
-                                                                                                                                                    ) : (
-                                                                                                                                                      <Link href={`/orders/${order.id}`} className="px-2 py-1 border text-xs rounded hover:bg-gray-100">詳細</Link>
-                                                                                                                                                                        )}
-                                                                                                                                                  </td>
-                                                                                                                            </tr>
-                                                                                                                        )
-                                                                        })}
-                                                                      </tbody>
-                                                        </table>
-                                            </div>
-                                  
-                                    {/* Right Panel */}
-                                            <div className="space-y-4">
-                                              {/* Billing Summary */}
-                                                        <div className="bg-white rounded-xl shadow-sm p-5">
-                                                                      <h2 className="font-semibold text-gray-800 mb-3">請求サマリー（今月）</h2>
-                                                                      <div className="space-y-3">
-                                                                                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                                                                                        <span className="text-sm text-gray-600">今月の請求額</span>
-                                                                                                        <span className="font-bold text-gray-800">￥{totalAmount.toLocaleString()}</span>
-                                                                                        </div>
-                                                                                      <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                                                                                                        <span className="text-sm text-gray-600">未入金額</span>
-                                                                                                        <span className="font-bold text-yellow-700">￥-</span>
-                                                                                        </div>
-                                                                                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                                                                                                        <span className="text-sm text-gray-600">入金済み額</span>
-                                                                                                        <span className="font-bold text-green-700">￥-</span>
-                                                                                        </div>
-                                                                      </div>
-                                                        </div>
-                                            
-                                              {/* Business Flow */}
-                                                        <div className="bg-white rounded-xl shadow-sm p-5">
-                                                                      <h2 className="font-semibold text-gray-800 mb-3">本日の業務フロー</h2>
-                                                                      <div className="space-y-2">
-                                                                        {[
-                      { label: '注文受信', count: stats.newOrders, color: 'bg-blue-500', status: '完了' },
-                      { label: '承認', count: stats.pendingApproval, color: 'bg-yellow-500', status: '対応中' },
-                      { label: '出荷依頼', count: stats.shippingRequested, color: 'bg-green-500', status: '完了' },
-                      { label: '納品書発行', count: 0, color: 'bg-purple-500', status: '対応中' },
-                      { label: '請求書発行', count: 0, color: 'bg-orange-500', status: '対応中' },
-                      { label: '入金確認', count: 0, color: 'bg-teal-500', status: '完了' },
-                                      ].map((step, i) => (
-                                                          <div key={i} className="flex items-center justify-between text-xs">
-                                                                              <div className="flex items-center gap-2">
-                                                                                                    <div className={`w-2 h-2 rounded-full ${step.color}`}></div>
-                                                                                                    <span className="text-gray-700">{step.label}</span>
-                                                                              </div>
-                                                                              <div className="flex items-center gap-2">
-                                                                                                    <span className="font-bold">{step.count}件</span>
-                                                                                                    <span className={`px-1.5 py-0.5 rounded text-xs ${step.status === '完了' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{step.status}</span>
-                                                                              </div>
-                                                          </div>
-                                                        ))}
-                                                                      </div>
-                                                        </div>
-                                            </div>
-                                  </div>
-                          </div>
-                    </div>
-                  )
+
+      let q = supabase
+        .from('orders')
+        .select('id, order_no, status, current_step, approved_steps, flow_id, delivery_date, created_at, updated_at')
+        .order('created_at', { ascending: false })
+
+      if (!isAdmin) q = q.in('flow_id', myFlowIds)
+      if (periodFilter) q = q.gte('created_at', periodFilter)
+
+      const { data: ordersData } = await q
+
+      const enriched: OrderRow[] = (ordersData || []).map((o: any) => {
+        const myStepIndex = isAdmin ? null : (o.flow_id ? (myFlowMap[o.flow_id] ?? null) : null)
+        const isMyTurn = !isAdmin && myStepIndex !== null && o.current_step === myStepIndex && o.status !== 'completed'
+        return {
+          id: o.id,
+          order_no: o.order_no,
+          status: o.status,
+          current_step: o.current_step,
+          approved_steps: o.approved_steps || [],
+          flow_id: o.flow_id,
+          delivery_date: o.delivery_date,
+          myStepIndex,
+          isMyTurn,
+        }
+      })
+
+      const involvedCount = enriched.length
+      const awaitingMeCount = enriched.filter(r => r.isMyTurn).length
+      const completedInvolvedCount = enriched.filter(r => r.status === 'completed').length
+
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+      let processedQ = supabase
+        .from('orders')
+        .select('approved_steps, flow_id, updated_at')
+        .gte('updated_at', monthStart)
+
+      if (!isAdmin) processedQ = processedQ.in('flow_id', myFlowIds)
+      const { data: processedData } = await processedQ
+
+      const myProcessedCount = (processedData || []).filter((o: any) => {
+        if (isAdmin) return (o.approved_steps || []).length > 0
+        const idx = o.flow_id ? myFlowMap[o.flow_id] : null
+        if (idx === null || idx === undefined) return false
+        return (o.approved_steps || []).includes(idx)
+      }).length
+
+      setStats({
+        involved: involvedCount,
+        awaitingMe: awaitingMeCount,
+        myProcessedThisMonth: myProcessedCount,
+        completedInvolved: completedInvolvedCount,
+      })
+
+      const statusCount: Record<string, number> = {}
+      enriched.forEach(r => {
+        statusCount[r.status] = (statusCount[r.status] || 0) + 1
+      })
+      setStatusBreakdown(
+        Object.entries(statusCount).map(([status, count]) => ({
+          name: STATUS_LABEL[status] || status,
+          value: count,
+        }))
+      )
+
+      setOrders(enriched.slice(0, 15))
+    } catch (e) {
+      console.error('[intermediary] fetchData error:', e)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><div className="text-gray-500">読み込み中...</div></div>
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-8 py-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">中間者ダッシュボード</h1>
+            <p className="text-emerald-100 text-sm mt-1">{companyName}</p>
+          </div>
+          <div className="text-right">
+            <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
+              {isAdmin ? '管理者' : '中間者'}
+            </span>
+            <p className="text-emerald-100 text-xs mt-1">{displayName || userEmail}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="flex gap-2 mb-6">
+          {([
+            { v: 'today', l: '本日' }, { v: 'week', l: '今週' },
+            { v: 'month', l: '今月' }, { v: 'all', l: '全期間' },
+          ] as const).map(t => (
+            <button key={t.v} onClick={() => setPeriod(t.v)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                period === t.v ? 'bg-emerald-600 text-white shadow' : 'bg-white text-gray-600 border hover:bg-gray-50'
+              }`}>{t.l}</button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard label="自社関与の発注" value={stats.involved} unit="件" loading={statsLoading} color="teal" />
+          <StatCard label="承認待ち（自分の番）" value={stats.awaitingMe} unit="件" loading={statsLoading} color="amber" highlight={stats.awaitingMe > 0} />
+          <StatCard label="自社処理済み（今月）" value={stats.myProcessedThisMonth} unit="件" loading={statsLoading} color="blue" />
+          <StatCard label="完了発注" value={stats.completedInvolved} unit="件" loading={statsLoading} color="green" />
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-6 mb-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">ステータス内訳</h2>
+          <div className="h-64">
+            {statusBreakdown.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-gray-400">データなし</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={statusBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                    {statusBreakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">受発注リスト（自社関与）</h2>
+          {orders.length === 0 ? (
+            <div className="text-center text-gray-400 py-12">関与する発注はまだありません</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-gray-500 text-left">
+                    <th className="py-3 px-2">発注No</th>
+                    <th className="py-3 px-2">納品日</th>
+                    <th className="py-3 px-2 text-center">現ステップ</th>
+                    <th className="py-3 px-2 text-center">自社の番</th>
+                    <th className="py-3 px-2">状態</th>
+                    <th className="py-3 px-2 text-center">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map(o => (
+                    <tr key={o.id} className={`border-b hover:bg-gray-50 ${o.isMyTurn ? 'bg-amber-50' : ''}`}>
+                      <td className="py-3 px-2 font-medium text-gray-700">{o.order_no}</td>
+                      <td className="py-3 px-2 text-gray-600">{o.delivery_date || '-'}</td>
+                      <td className="py-3 px-2 text-center text-gray-700">step {o.current_step}</td>
+                      <td className="py-3 px-2 text-center">
+                        {o.isMyTurn ? (
+                          <span className="bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-bold">承認待ち</span>
+                        ) : o.myStepIndex !== null ? (
+                          <span className="text-xs text-gray-400">step {o.myStepIndex}</span>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-2">
+                        <span className={`px-2 py-1 rounded-full text-xs ${STATUS_COLOR[o.status] || 'bg-gray-100 text-gray-700'}`}>
+                          {STATUS_LABEL[o.status] || o.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <Link href={`/orders/${o.id}`} className="text-emerald-600 hover:underline">詳細</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ label, value, unit, loading, color, highlight }: {
+  label: string; value: number; unit: string; loading: boolean
+  color: 'teal' | 'amber' | 'blue' | 'green'
+  highlight?: boolean
+}) {
+  const colorMap = {
+    teal: 'from-teal-500 to-emerald-500',
+    amber: 'from-amber-500 to-orange-500',
+    blue: 'from-blue-500 to-cyan-500',
+    green: 'from-green-500 to-emerald-500',
+  }
+
+  return (
+    <div className={`bg-white rounded-xl shadow p-6 hover:shadow-md transition ${highlight ? 'ring-2 ring-amber-400' : ''}`}>
+      <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${colorMap[color]} mb-4`} />
+      <p className="text-sm text-gray-500 mb-1">{label}</p>
+      {loading ? (
+        <div className="h-9 bg-gray-200 rounded animate-pulse" />
+      ) : (
+        <p className="text-3xl font-bold text-gray-800">
+          {value.toLocaleString()}
+          <span className="text-base font-normal text-gray-500 ml-1">{unit}</span>
+        </p>
+      )}
+    </div>
+  )
 }
