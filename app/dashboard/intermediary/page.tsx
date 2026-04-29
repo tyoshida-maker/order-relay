@@ -79,7 +79,7 @@ export default function IntermediaryDashboard() {
                         }
       }
         
-          if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>div></div>div>
+          if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>
             
               const totalAmount = orders.reduce((sum, o) => {
                 return sum + o.order_items.reduce((s, i) => s + (i.unit_price || 0) * i.quantity, 0)
@@ -91,16 +91,16 @@ export default function IntermediaryDashboard() {
                           <div className="w-56 bg-gray-900 text-white flex flex-col fixed h-full z-10">
                                   <div className="p-4 border-b border-gray-700">
                                             <div className="flex items-center gap-2 mb-1">
-                                                        <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-sm font-bold">\u5546</div>div>
+                                                        <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-sm font-bold">\u5546</div>
                                                         <div>
-                                                                      <div className="text-sm font-bold">\u5546\u6d41OS</div>div>
-                                                                      <div className="text-xs text-gray-400">\u4e2d\u9593\u696d\u8005\u7ba1\u7406\u753b\u9762</div>div>
-                                                        </div>div>
-                                            </div>div>
-                                            <div className="text-xs text-gray-400 mt-1">\u30bc\u30ed\u30c6\u30c3\u30af\u682a\u5f0f\u4f1a\u793e</div>div>
-                                  </div>div>
+                                                                      <div className="text-sm font-bold">\u5546\u6d41OS</div>
+                                                                      <div className="text-xs text-gray-400">\u4e2d\u9593\u696d\u8005\u7ba1\u7406\u753b\u9762</div>
+                                                        </div>
+                                            </div>
+                                            <div className="text-xs text-gray-400 mt-1">\u30bc\u30ed\u30c6\u30c3\u30af\u682a\u5f0f\u4f1a\u793e</div>
+                                  </div>
                                   <nav className="flex-1 p-3 space-y-1">
-                                            <div className="px-3 py-2 bg-blue-600 rounded text-sm font-medium">\ud83c\udfe0 \u30c0\u30c3\u30b7\u30e5\u30dc\u30fc\u30c9</div>div>
+                                            <div className="px-3 py-2 bg-blue-600 rounded text-sm font-medium">\ud83c\udfe0 \u30c0\u30c3\u30b7\u30e5\u30dc\u30fc\u30c9</div>
                                             <Link href="/orders" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83d\udccb \u53d7\u767a\u6ce8\u7ba1\u7406</Link>Link>
                                             <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83d\udcdc \u7d0d\u54c1\u66f8\u7ba1\u7406</Link>Link>
                                             <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\uffe5 \u8acb\u6c42\u7ba1\u7406</Link>Link>
@@ -111,8 +111,8 @@ export default function IntermediaryDashboard() {
                                   <div className="p-3 border-t border-gray-700">
                                             <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }}
                                                           className="w-full px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700 text-left">\ud83d\udeaa \u30ed\u30b0\u30a2\u30a6\u30c8</button>button>
-                                  </div>div>
-                          </div>div>
+                                  </div>
+                          </div>
                     
                       {/* Main */}
                           <div className="ml-56 flex-1 p-6">
@@ -122,39 +122,39 @@ export default function IntermediaryDashboard() {
                                             <div className="flex items-center gap-4">
                                                         <span className="text-sm text-gray-500">{new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</span>
                                                         <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2">
-                                                                      <div className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center text-xs">\ud83d\udc64</div>div>
+                                                                      <div className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center text-xs">\ud83d\udc64</div>
                                                                       <span className="text-sm font-medium">{userName}</span>
-                                                        </div>div>
-                                            </div>div>
-                                  </div>div>
+                                                        </div>
+                                            </div>
+                                  </div>
                           
                             {/* Stats Cards */}
                                   <div className="grid grid-cols-4 gap-4 mb-6">
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-500">
-                                                        <div className="text-xs text-gray-500 mb-1">\u65b0\u898f\u6ce8\u6587</div>div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.newOrders}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>div>
-                                                        <div className="text-xs text-gray-400 mt-1">\u672c\u65e5\u53d7\u4fe1</div>div>
+                                                        <div className="text-xs text-gray-500 mb-1">\u65b0\u898f\u6ce8\u6587</div>
+                                                        <div className="text-3xl font-bold text-gray-800">{stats.newOrders}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>
+                                                        <div className="text-xs text-gray-400 mt-1">\u672c\u65e5\u53d7\u4fe1</div>
                                                         <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
-                                            </div>div>
+                                            </div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-500">
-                                                        <div className="text-xs text-gray-500 mb-1">\u627f\u8a8d\u5f85\u3061</div>div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.pendingApproval}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>div>
-                                                        <div className="text-xs text-gray-400 mt-1">\u78ba\u8a8d\u304c\u5fc5\u8981</div>div>
+                                                        <div className="text-xs text-gray-500 mb-1">\u627f\u8a8d\u5f85\u3061</div>
+                                                        <div className="text-3xl font-bold text-gray-800">{stats.pendingApproval}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>
+                                                        <div className="text-xs text-gray-400 mt-1">\u78ba\u8a8d\u304c\u5fc5\u8981</div>
                                                         <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
-                                            </div>div>
+                                            </div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
-                                                        <div className="text-xs text-gray-500 mb-1">\u51fa\u8377\u4f9d\u983c\u6e08</div>div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.shippingRequested}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>div>
-                                                        <div className="text-xs text-gray-400 mt-1">\u4e5d\u5dde\u98df\u7ce7\u306b\u4f9d\u983c\u6e08</div>div>
+                                                        <div className="text-xs text-gray-500 mb-1">\u51fa\u8377\u4f9d\u983c\u6e08</div>
+                                                        <div className="text-3xl font-bold text-gray-800">{stats.shippingRequested}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>
+                                                        <div className="text-xs text-gray-400 mt-1">\u4e5d\u5dde\u98df\u7ce7\u306b\u4f9d\u983c\u6e08</div>
                                                         <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
-                                            </div>div>
+                                            </div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-500">
-                                                        <div className="text-xs text-gray-500 mb-1">\u554f\u984c\u6848\u4ef6</div>div>
-                                                        <div className="text-3xl font-bold text-gray-800">{stats.issues}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>div>
-                                                        <div className="text-xs text-gray-400 mt-1">\u5bfe\u5fdc\u304c\u5fc5\u8981</div>div>
+                                                        <div className="text-xs text-gray-500 mb-1">\u554f\u984c\u6848\u4ef6</div>
+                                                        <div className="text-3xl font-bold text-gray-800">{stats.issues}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>
+                                                        <div className="text-xs text-gray-400 mt-1">\u5bfe\u5fdc\u304c\u5fc5\u8981</div>
                                                         <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
-                                            </div>div>
-                                  </div>div>
+                                            </div>
+                                  </div>
                           
                                   <div className="grid grid-cols-3 gap-6">
                                     {/* Orders Table */}
@@ -162,7 +162,7 @@ export default function IntermediaryDashboard() {
                                                         <div className="flex items-center justify-between mb-4">
                                                                       <h2 className="font-semibold text-gray-800">\u53d7\u767a\u6ce8\u72b6\u6cc1\uff08\u6700\u65b0\u4e00\u89a7\uff09</h2>h2>
                                                                       <Link href="/orders" className="text-sm text-blue-500">\u3059\u3079\u3066\u306e\u53d7\u767a\u6ce8\u3092\u898b\u308b &gt;</Link>Link>
-                                                        </div>div>
+                                                        </div>
                                                         <table className="w-full text-sm">
                                                                       <thead>
                                                                                       <tr className="border-b text-gray-500 text-xs">
@@ -201,7 +201,7 @@ export default function IntermediaryDashboard() {
                                                                         })}
                                                                       </tbody>tbody>
                                                         </table>table>
-                                            </div>div>
+                                            </div>
                                   
                                     {/* Right Panel */}
                                             <div className="space-y-4">
@@ -212,17 +212,17 @@ export default function IntermediaryDashboard() {
                                                                                       <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                                                                                         <span className="text-sm text-gray-600">\u4eca\u6708\u306e\u8acb\u6c42\u984d</span>
                                                                                                         <span className="font-bold text-gray-800">\uffe5{totalAmount.toLocaleString()}</span>
-                                                                                        </div>div>
+                                                                                        </div>
                                                                                       <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
                                                                                                         <span className="text-sm text-gray-600">\u672a\u5165\u91d1\u984d</span>
                                                                                                         <span className="font-bold text-yellow-700">\uffe5-</span>
-                                                                                        </div>div>
+                                                                                        </div>
                                                                                       <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                                                                                                         <span className="text-sm text-gray-600">\u5165\u91d1\u6e08\u307f\u984d</span>
                                                                                                         <span className="font-bold text-green-700">\uffe5-</span>
-                                                                                        </div>div>
-                                                                      </div>div>
-                                                        </div>div>
+                                                                                        </div>
+                                                                      </div>
+                                                        </div>
                                             
                                               {/* Business Flow */}
                                                         <div className="bg-white rounded-xl shadow-sm p-5">
@@ -238,20 +238,20 @@ export default function IntermediaryDashboard() {
                                       ].map((step, i) => (
                                                           <div key={i} className="flex items-center justify-between text-xs">
                                                                               <div className="flex items-center gap-2">
-                                                                                                    <div className={`w-2 h-2 rounded-full ${step.color}`}></div>div>
+                                                                                                    <div className={`w-2 h-2 rounded-full ${step.color}`}></div>
                                                                                                     <span className="text-gray-700">{step.label}</span>
-                                                                              </div>div>
+                                                                              </div>
                                                                               <div className="flex items-center gap-2">
                                                                                                     <span className="font-bold">{step.count}\u4ef6</span>
                                                                                                     <span className={`px-1.5 py-0.5 rounded text-xs ${step.status === '\u5b8c\u4e86' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{step.status}</span>
-                                                                              </div>div>
-                                                          </div>div>
+                                                                              </div>
+                                                          </div>
                                                         ))}
-                                                                      </div>div>
-                                                        </div>div>
-                                            </div>div>
-                                  </div>div>
-                          </div>div>
-                    </div>div>
+                                                                      </div>
+                                                        </div>
+                                            </div>
+                                  </div>
+                          </div>
+                    </div>
                   )
 }</span>
