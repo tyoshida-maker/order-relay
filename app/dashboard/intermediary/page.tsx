@@ -30,7 +30,7 @@ export default function IntermediaryDashboard() {
                 const { data: profile } = await supabase
                   .from('or_user_profiles')
                   .select('name, role')
-                  .eq('user_id', user.id)
+                  .eq('id', user.id)
                   .single()
 
                 if (profile?.role !== 'admin' && profile?.role !== 'intermediary') {
