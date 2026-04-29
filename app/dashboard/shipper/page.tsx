@@ -23,7 +23,7 @@ export default function ShipperDashboard() {
         const load = async () => {
                 const { data: { user } } = await supabase.auth.getUser()
                 if (!user) { router.push('/login'); return }
-                const { data: p } = await supabase.from('or_user_profiles').select('name').eq('user_id', user.id).single()
+                const { data: p } = await supabase.from('or_user_profiles').select('name').eq('id', user.id).single()
                 setUserName(p?.name || user.email || '')
                 const { data: od } = await supabase.from('orders').select('id, order_no, order_date, delivery_date, status, companies(name), order_items(quantity, products(name))').order('order_date', { ascending: false }).limit(20)
                 setOrders((od || []) as Order[])
