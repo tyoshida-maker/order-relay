@@ -254,4 +254,4 @@ export default function IntermediaryDashboard() {
                           </div>
                     </div>
                   )
-}</span>
+}
