@@ -101,16 +101,16 @@ export default function IntermediaryDashboard() {
                                   </div>
                                   <nav className="flex-1 p-3 space-y-1">
                                             <div className="px-3 py-2 bg-blue-600 rounded text-sm font-medium">\ud83c\udfe0 \u30c0\u30c3\u30b7\u30e5\u30dc\u30fc\u30c9</div>
-                                            <Link href="/orders" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83d\udccb \u53d7\u767a\u6ce8\u7ba1\u7406</Link>Link>
-                                            <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83d\udcdc \u7d0d\u54c1\u66f8\u7ba1\u7406</Link>Link>
-                                            <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\uffe5 \u8acb\u6c42\u7ba1\u7406</Link>Link>
-                                            <Link href="/companies" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83c\udfe2 \u53d6\u5f15\u5148\u7ba1\u7406</Link>Link>
-                                            <Link href="/products" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83d\udce6 \u5546\u54c1\u7ba1\u7406</Link>Link>
-                                            <Link href="/admin/users" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\u2699\ufe0f \u8a2d\u5b9a</Link>Link>
-                            </nav>nav>
+                                            <Link href="/orders" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83d\udccb \u53d7\u767a\u6ce8\u7ba1\u7406</Link>
+                                            <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83d\udcdc \u7d0d\u54c1\u66f8\u7ba1\u7406</Link>
+                                            <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\uffe5 \u8acb\u6c42\u7ba1\u7406</Link>
+                                            <Link href="/companies" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83c\udfe2 \u53d6\u5f15\u5148\u7ba1\u7406</Link>
+                                            <Link href="/products" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\ud83d\udce6 \u5546\u54c1\u7ba1\u7406</Link>
+                                            <Link href="/admin/users" className="block px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700">\u2699\ufe0f \u8a2d\u5b9a</Link>
+                            </nav>
                                   <div className="p-3 border-t border-gray-700">
                                             <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }}
-                                                          className="w-full px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700 text-left">\ud83d\udeaa \u30ed\u30b0\u30a2\u30a6\u30c8</button>button>
+                                                          className="w-full px-3 py-2 rounded text-sm text-gray-300 hover:bg-gray-700 text-left">\ud83d\udeaa \u30ed\u30b0\u30a2\u30a6\u30c8</button>
                                   </div>
                           </div>
                     
@@ -134,25 +134,25 @@ export default function IntermediaryDashboard() {
                                                         <div className="text-xs text-gray-500 mb-1">\u65b0\u898f\u6ce8\u6587</div>
                                                         <div className="text-3xl font-bold text-gray-800">{stats.newOrders}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>
                                                         <div className="text-xs text-gray-400 mt-1">\u672c\u65e5\u53d7\u4fe1</div>
-                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
+                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>
                                             </div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-500">
                                                         <div className="text-xs text-gray-500 mb-1">\u627f\u8a8d\u5f85\u3061</div>
                                                         <div className="text-3xl font-bold text-gray-800">{stats.pendingApproval}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>
                                                         <div className="text-xs text-gray-400 mt-1">\u78ba\u8a8d\u304c\u5fc5\u8981</div>
-                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
+                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>
                                             </div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
                                                         <div className="text-xs text-gray-500 mb-1">\u51fa\u8377\u4f9d\u983c\u6e08</div>
                                                         <div className="text-3xl font-bold text-gray-800">{stats.shippingRequested}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>
                                                         <div className="text-xs text-gray-400 mt-1">\u4e5d\u5dde\u98df\u7ce7\u306b\u4f9d\u983c\u6e08</div>
-                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
+                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>
                                             </div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-500">
                                                         <div className="text-xs text-gray-500 mb-1">\u554f\u984c\u6848\u4ef6</div>
                                                         <div className="text-3xl font-bold text-gray-800">{stats.issues}<span className="text-sm font-normal text-gray-500 ml-1">\u4ef6</span></div>
                                                         <div className="text-xs text-gray-400 mt-1">\u5bfe\u5fdc\u304c\u5fc5\u8981</div>
-                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>Link>
+                                                        <Link href="/orders" className="text-xs text-blue-500 mt-2 block">\u8a73\u7d30\u3092\u898b\u308b &gt;</Link>
                                             </div>
                                   </div>
                           
@@ -161,20 +161,20 @@ export default function IntermediaryDashboard() {
                                             <div className="col-span-2 bg-white rounded-xl shadow-sm p-5">
                                                         <div className="flex items-center justify-between mb-4">
                                                                       <h2 className="font-semibold text-gray-800">\u53d7\u767a\u6ce8\u72b6\u6cc1\uff08\u6700\u65b0\u4e00\u89a7\uff09</h2>h2>
-                                                                      <Link href="/orders" className="text-sm text-blue-500">\u3059\u3079\u3066\u306e\u53d7\u767a\u6ce8\u3092\u898b\u308b &gt;</Link>Link>
+                                                                      <Link href="/orders" className="text-sm text-blue-500">\u3059\u3079\u3066\u306e\u53d7\u767a\u6ce8\u3092\u898b\u308b &gt;</Link>
                                                         </div>
                                                         <table className="w-full text-sm">
                                                                       <thead>
                                                                                       <tr className="border-b text-gray-500 text-xs">
-                                                                                                        <th className="text-left py-2">\u6ce8\u6587\u756a\u53f7</th>th>
-                                                                                                        <th className="text-left py-2">\u6ce8\u6587\u65e5</th>th>
-                                                                                                        <th className="text-left py-2">\u767a\u6ce8\u8005</th>th>
-                                                                                                        <th className="text-left py-2">\u5546\u54c1\u30fb\u6570\u91cf</th>th>
-                                                                                                        <th className="text-left py-2">\u7d0d\u54c1\u5e0c\u671b\u65e5</th>th>
-                                                                                                        <th className="text-left py-2">\u30b9\u30c6\u30fc\u30bf\u30b9</th>th>
-                                                                                                        <th className="text-left py-2">\u64cd\u4f5c</th>th>
-                                                                                        </tr>tr>
-                                                                      </thead>thead>
+                                                                                                        <th className="text-left py-2">\u6ce8\u6587\u756a\u53f7</th>
+                                                                                                        <th className="text-left py-2">\u6ce8\u6587\u65e5</th>
+                                                                                                        <th className="text-left py-2">\u767a\u6ce8\u8005</th>
+                                                                                                        <th className="text-left py-2">\u5546\u54c1\u30fb\u6570\u91cf</th>
+                                                                                                        <th className="text-left py-2">\u7d0d\u54c1\u5e0c\u671b\u65e5</th>
+                                                                                                        <th className="text-left py-2">\u30b9\u30c6\u30fc\u30bf\u30b9</th>
+                                                                                                        <th className="text-left py-2">\u64cd\u4f5c</th>
+                                                                                        </tr>
+                                                                      </thead>
                                                                       <tbody>
                                                                         {orders.slice(0, 8).map(order => {
                                         const item = order.order_items[0]
@@ -182,25 +182,25 @@ export default function IntermediaryDashboard() {
                                                                                 const qty = item?.quantity || 0
                                                                                                     return (
                                                                                                                           <tr key={order.id} className="border-b hover:bg-gray-50">
-                                                                                                                                                <td className="py-2 text-blue-600 font-medium">{order.order_no}</td>td>
-                                                                                                                                                <td className="py-2 text-gray-600">{order.order_date}</td>td>
-                                                                                                                                                <td className="py-2 text-gray-700">{order.companies?.name || '-'}</td>td>
-                                                                                                                                                <td className="py-2 text-gray-700">{productName} {qty}\u672c</td>td>
-                                                                                                                                                <td className="py-2 text-gray-600">{order.delivery_date || '-'}</td>td>
-                                                                                                                                                <td className="py-2">{getStatusBadge(order.status, order.current_step)}</td>td>
+                                                                                                                                                <td className="py-2 text-blue-600 font-medium">{order.order_no}</td>
+                                                                                                                                                <td className="py-2 text-gray-600">{order.order_date}</td>
+                                                                                                                                                <td className="py-2 text-gray-700">{order.companies?.name || '-'}</td>
+                                                                                                                                                <td className="py-2 text-gray-700">{productName} {qty}\u672c</td>
+                                                                                                                                                <td className="py-2 text-gray-600">{order.delivery_date || '-'}</td>
+                                                                                                                                                <td className="py-2">{getStatusBadge(order.status, order.current_step)}</td>
                                                                                                                                                 <td className="py-2">
                                                                                                                                                   {(order.status === 'pending' || order.current_step === 0) ? (
                                                                                                                                                       <button onClick={() => handleApprove(order.id)}
-                                                                                                                                                                                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">\u627f\u8a8d</button>button>
+                                                                                                                                                                                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">\u627f\u8a8d</button>
                                                                                                                                                     ) : (
-                                                                                                                                                      <Link href={`/orders/${order.id}`} className="px-2 py-1 border text-xs rounded hover:bg-gray-100">\u8a73\u7d30</Link>Link>
+                                                                                                                                                      <Link href={`/orders/${order.id}`} className="px-2 py-1 border text-xs rounded hover:bg-gray-100">\u8a73\u7d30</Link>
                                                                                                                                                                         )}
-                                                                                                                                                  </td>td>
-                                                                                                                            </tr>tr>
+                                                                                                                                                  </td>
+                                                                                                                            </tr>
                                                                                                                         )
                                                                         })}
-                                                                      </tbody>tbody>
-                                                        </table>table>
+                                                                      </tbody>
+                                                        </table>
                                             </div>
                                   
                                     {/* Right Panel */}
