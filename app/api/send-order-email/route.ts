@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Order Relay <onboarding@resend.dev>',
+        from: 'Order Relay <noreply@order-relay.classic.co.jp>',
         to: [email],
         subject: `【発注通知】${order_no} - ${from_company}`,
         html
