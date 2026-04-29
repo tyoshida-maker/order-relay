@@ -1,119 +1,391 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend
+} from 'recharts'
 
-type Order = {
-  id: string; order_no: string; order_date: string; delivery_date: string | null
-  status: string; current_step: number | null
-  order_items: { quantity: number; unit_price: number | null; products: { name: string } | null }[]
+type Period = 'today' | 'week' | 'month' | 'all'
+
+type Stats = {
+  total: number
+  inProgress: number
+  completed: number
+  monthlyAmount: number
+}
+
+type RecentOrder = {
+  id: string
+  order_no: string
+  delivery_date: string | null
+  status: string
+  current_step: number
+  total_amount: number
+}
+
+type MonthlyTrend = { month: string; count: number }
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: '下書き',
+  confirmed: '確認済み',
+  in_progress: '進行中',
+  completed: '完了',
+  cancelled: 'キャンセル',
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  confirmed: 'bg-blue-100 text-blue-700',
+  in_progress: 'bg-amber-100 text-amber-700',
+  completed: 'bg-green-100 text-green-700',
+  cancelled: 'bg-red-100 text-red-700',
 }
 
 export default function OrdererDashboard() {
   const router = useRouter()
-  const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [userEmail, setUserEmail] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [companyId, setCompanyId] = useState<string | null>(null)
   const [companyName, setCompanyName] = useState('')
-  const [userName, setUserName] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [period, setPeriod] = useState<Period>('month')
+  const [stats, setStats] = useState<Stats>({ total: 0, inProgress: 0, completed: 0, monthlyAmount: 0 })
+  const [trend, setTrend] = useState<MonthlyTrend[]>([])
+  const [recent, setRecent] = useState<RecentOrder[]>([])
 
   useEffect(() => {
-    const load = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
-      const { data: profile } = await supabase.from('or_user_profiles').select('name, role, company_id').eq('user_id', user.id).single()
-      setUserName(profile?.name || user.email || '')
-      if (profile?.company_id) {
-        const { data: co } = await supabase.from('companies').select('name').eq('id', profile.company_id).single()
-        setCompanyName(co?.name || '')
+
+      const { data: profile } = await supabase
+        .from('or_user_profiles')
+        .select('role, company_id, display_name')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile) { router.push('/login'); return }
+
+      const allowedRoles = ['admin', 'partner', 'orderer']
+      if (!allowedRoles.includes(profile.role)) {
+        router.push('/login'); return
       }
-      const { data: od } = await supabase.from('orders').select('id, order_no, order_date, delivery_date, status, current_step, order_items(quantity, unit_price, products(name))').order('order_date', { ascending: false }).limit(10)
-      setOrders((od || []) as Order[])
+
+      setUserEmail(user.email || '')
+      setDisplayName(profile.display_name || '')
+      setIsAdmin(profile.role === 'admin')
+      setCompanyId(profile.company_id)
+
+      if (profile.company_id) {
+        const { data: company } = await supabase
+          .from('companies')
+          .select('name')
+          .eq('id', profile.company_id)
+          .single()
+        setCompanyName(company?.name || '')
+      } else {
+        setCompanyName('全社（管理者）')
+      }
+
       setLoading(false)
     }
-    load()
+    init()
   }, [router])
 
-  const badge = (s: string) => {
-    if (s === 'completed') return <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">納品完了</span>
-    if (s === 'approved') return <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">発送準備中</span>
-    if (s === 'shipped') return <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">発送済</span>
-    return <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">注文受付</span>
+  useEffect(() => {
+    if (loading) return
+    fetchData()
+  }, [loading, period, companyId, isAdmin])
+
+  const getPeriodFilter = (): string | null => {
+    const now = new Date()
+    if (period === 'today') {
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+    }
+    if (period === 'week') {
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    }
+    if (period === 'month') {
+      return new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    }
+    return null
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>
+  const fetchData = async () => {
+    setStatsLoading(true)
+    try {
+      const periodFilter = getPeriodFilter()
 
-  const lo = orders[0]; const li = lo?.order_items[0]
-  const total = orders.reduce((s, o) => s + o.order_items.reduce((ss, i) => ss + (i.unit_price || 0) * i.quantity, 0), 0)
-  const steps = ['注文受付', '発送準備中', '発送済', '配送中', '納品予定']
-  const cs = lo?.current_step || 0
+      const applyScope = (q: any) => {
+        if (!isAdmin && companyId) return q.eq('from_company_id', companyId)
+        return q
+      }
+
+      let totalQ = applyScope(supabase.from('orders').select('*', { count: 'exact', head: true }))
+      if (periodFilter) totalQ = totalQ.gte('created_at', periodFilter)
+      const { count: totalCount } = await totalQ
+
+      let progressQ = applyScope(
+        supabase.from('orders').select('*', { count: 'exact', head: true })
+          .in('status', ['confirmed', 'in_progress'])
+      )
+      if (periodFilter) progressQ = progressQ.gte('created_at', periodFilter)
+      const { count: progressCount } = await progressQ
+
+      let completedQ = applyScope(
+        supabase.from('orders').select('*', { count: 'exact', head: true })
+          .eq('status', 'completed')
+      )
+      if (periodFilter) completedQ = completedQ.gte('created_at', periodFilter)
+      const { count: completedCount } = await completedQ
+
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+      let amountOrdersQ = applyScope(
+        supabase.from('orders').select('id').gte('created_at', monthStart)
+      )
+      const { data: amountOrders } = await amountOrdersQ
+
+      const orderIds = (amountOrders || []).map((o: any) => o.id)
+      let monthlyAmount = 0
+      if (orderIds.length > 0) {
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('quantity, unit_price, order_id')
+          .in('order_id', orderIds)
+        monthlyAmount = (items || []).reduce((sum: number, it: any) => {
+          const q = Number(it.quantity) || 0
+          const p = Number(it.unit_price) || 0
+          return sum + q * p
+        }, 0)
+      }
+
+      setStats({
+        total: totalCount || 0,
+        inProgress: progressCount || 0,
+        completed: completedCount || 0,
+        monthlyAmount,
+      })
+
+      const sixMonthsAgo = new Date()
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
+      sixMonthsAgo.setDate(1)
+      sixMonthsAgo.setHours(0, 0, 0, 0)
+
+      let trendQ = applyScope(
+        supabase.from('orders').select('created_at')
+          .gte('created_at', sixMonthsAgo.toISOString())
+      )
+      const { data: trendData } = await trendQ
+
+      const trendMap: Record<string, number> = {}
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date()
+        d.setMonth(d.getMonth() - i)
+        const key = `${d.getFullYear()}/${d.getMonth() + 1}`
+        trendMap[key] = 0
+      }
+      ;(trendData || []).forEach((row: any) => {
+        const d = new Date(row.created_at)
+        const key = `${d.getFullYear()}/${d.getMonth() + 1}`
+        if (key in trendMap) trendMap[key]++
+      })
+      setTrend(Object.entries(trendMap).map(([month, count]) => ({ month, count })))
+
+      let recentQ = applyScope(
+        supabase.from('orders')
+          .select('id, order_no, delivery_date, status, current_step')
+          .order('created_at', { ascending: false })
+          .limit(10)
+      )
+      const { data: recentData } = await recentQ
+
+      const recentIds = (recentData || []).map((o: any) => o.id)
+      const amountMap: Record<string, number> = {}
+      if (recentIds.length > 0) {
+        const { data: recentItems } = await supabase
+          .from('order_items')
+          .select('order_id, quantity, unit_price')
+          .in('order_id', recentIds)
+        ;(recentItems || []).forEach((it: any) => {
+          const q = Number(it.quantity) || 0
+          const p = Number(it.unit_price) || 0
+          amountMap[it.order_id] = (amountMap[it.order_id] || 0) + q * p
+        })
+      }
+
+      setRecent((recentData || []).map((o: any) => ({
+        id: o.id,
+        order_no: o.order_no,
+        delivery_date: o.delivery_date,
+        status: o.status,
+        current_step: o.current_step,
+        total_amount: amountMap[o.id] || 0,
+      })))
+
+    } catch (e) {
+      console.error('[orderer] fetchData error:', e)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-500">読み込み中...</div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <div className="w-56 bg-white border-r flex flex-col fixed h-full z-10 shadow-sm">
-        <div className="p-4 border-b"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-bold">発</div><div><div className="text-sm font-bold">商流OS</div><div className="text-xs text-gray-400">発注者ダッシュボード</div></div></div></div>
-        <nav className="flex-1 p-3 space-y-1">
-          <div className="px-3 py-2 bg-blue-50 text-blue-700 rounded text-sm font-medium">🏠 ダッシュボード</div>
-          <Link href="/orders/new" className="block px-3 py-2 rounded text-sm text-gray-600 hover:bg-gray-100">📝 発注する</Link>
-          <Link href="/orders" className="block px-3 py-2 rounded text-sm text-gray-600 hover:bg-gray-100">📋 発注一覧</Link>
-          <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-600 hover:bg-gray-100">🚚 発送状況</Link>
-          <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-600 hover:bg-gray-100">¥ 請求一覧</Link>
-          <Link href="#" className="block px-3 py-2 rounded text-sm text-gray-600 hover:bg-gray-100">⭐ お気に入りの発注</Link>
-        </nav>
-        <div className="p-3 border-t">
-          <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }} className="w-full px-3 py-2 rounded text-sm text-gray-600 hover:bg-gray-100 text-left">🚪 ログアウト</button>
-        </div>
-      </div>
-      <div className="ml-56 flex-1 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">ダッシュボード</h1>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2 text-sm">🏢 <span className="font-medium">{companyName || '発注者'}</span></div>
-            <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2 text-sm">👤 <span>{userName}</span></div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-8 py-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">発注者ダッシュボード</h1>
+            <p className="text-blue-100 text-sm mt-1">{companyName}</p>
           </div>
-        </div>
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-sm p-4 border"><div className="text-xs text-gray-500 mb-1">📅 次の納品予定</div><div className="text-lg font-bold">{lo?.delivery_date || '-'}</div><div className="text-xs text-gray-400">{li?.products?.name || '-'}</div></div>
-          <div className="bg-green-50 rounded-xl shadow-sm p-4 border border-green-100"><div className="text-xs text-gray-500 mb-1">🚚 発送状況</div><div className="mt-1">{badge(lo?.status || 'pending')}</div><div className="text-xs text-gray-400 mt-1">{lo?.delivery_date ? `${lo.delivery_date} 発送予定` : '-'}</div></div>
-          <div className="bg-orange-50 rounded-xl shadow-sm p-4 border border-orange-100"><div className="text-xs text-gray-500 mb-1">📦 直近の発注</div><div className="text-lg font-bold">{lo?.order_date || '-'}</div><div className="text-xs text-gray-400">{li?.products?.name} {li?.quantity}本</div></div>
-          <div className="bg-purple-50 rounded-xl shadow-sm p-4 border border-purple-100"><div className="text-xs text-gray-500 mb-1">¥ 今月の請求額</div><div className="text-lg font-bold">¥{total.toLocaleString()}</div><div className="text-xs text-gray-400">({new Date().getMonth() + 1}月分)</div></div>
-        </div>
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2 bg-white rounded-xl shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4"><h2 className="font-semibold text-gray-800">発注一覧</h2><Link href="/orders" className="text-sm text-blue-500">すべて見る &gt;</Link></div>
-            <table className="w-full text-sm">
-              <thead><tr className="border-b text-gray-500 text-xs"><th className="text-left py-2">発注日</th><th className="text-left py-2">注文番号</th><th className="text-left py-2">商品</th><th className="text-left py-2">納品予定</th><th className="text-left py-2">ステータス</th><th className="text-right py-2">金額</th></tr></thead>
-              <tbody>
-                {orders.slice(0, 5).map(o => {
-                  const it = o.order_items[0]; const amt = o.order_items.reduce((s, i) => s + (i.unit_price || 0) * i.quantity, 0)
-                  return <tr key={o.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/orders/${o.id}`)}><td className="py-2 text-gray-600">{o.order_date}</td><td className="py-2 text-blue-600 font-medium">{o.order_no}</td><td className="py-2">{it?.products?.name || '-'} {it?.quantity}本</td><td className="py-2 text-gray-600">{o.delivery_date || '-'}</td><td className="py-2">{badge(o.status)}</td><td className="py-2 text-right">¥{amt.toLocaleString()}</td></tr>
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="space-y-4">
-            <div className="bg-white rounded-xl shadow-sm p-5">
-              <h2 className="font-semibold text-gray-800 mb-3">発送状況の確認</h2>
-              <div className="flex items-center gap-1 flex-wrap">
-                {steps.map((label, i) => (<div key={i} className="flex items-center"><div className={`w-3 h-3 rounded-full ${i <= cs ? 'bg-blue-600' : 'bg-gray-200'}`}></div>{i < steps.length - 1 && <div className={`w-4 h-0.5 ${i < cs ? 'bg-blue-600' : 'bg-gray-200'}`}></div>}</div>))}
-              </div>
-              <div className="text-xs text-blue-600 mt-1">{steps[cs]}</div>
-              <Link href="/orders" className="block w-full text-center py-2 mt-3 bg-blue-600 text-white text-sm rounded-lg">詳しい発送状況 &gt;</Link>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-5">
-              <h2 className="font-semibold text-gray-800 mb-3">よく使う機能</h2>
-              <div className="space-y-2">
-                <Link href="/orders/new" className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 text-sm"><span>⭐ お気に入りの発注をする</span><span>›</span></Link>
-                <Link href="#" className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 text-sm"><span>📄 請求書ダウンロード</span><span>›</span></Link>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-5">
-              <h2 className="font-semibold text-gray-800 mb-2">お知らせ</h2>
-              <div className="p-2 bg-blue-50 rounded text-xs text-gray-600">納品ルール：平日 12:00までの発注は翻日納品となります。</div>
-            </div>
+          <div className="text-right">
+            <span className="bg-white/20 px-3 py-1 rounded-full text-sm">
+              {isAdmin ? '管理者' : '発注者'}
+            </span>
+            <p className="text-blue-100 text-xs mt-1">{displayName || userEmail}</p>
           </div>
         </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="flex gap-2 mb-6">
+          {([
+            { v: 'today', l: '本日' },
+            { v: 'week', l: '今週' },
+            { v: 'month', l: '今月' },
+            { v: 'all', l: '全期間' },
+          ] as const).map(t => (
+            <button
+              key={t.v}
+              onClick={() => setPeriod(t.v)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                period === t.v
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'bg-white text-gray-600 border hover:bg-gray-50'
+              }`}
+            >
+              {t.l}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard label="発注数" value={stats.total} unit="件" loading={statsLoading} color="blue" />
+          <StatCard label="進行中" value={stats.inProgress} unit="件" loading={statsLoading} color="amber" />
+          <StatCard label="完了済み" value={stats.completed} unit="件" loading={statsLoading} color="green" />
+          <StatCard
+            label="今月の請求額"
+            value={stats.monthlyAmount}
+            unit="円"
+            loading={statsLoading}
+            color="purple"
+            prefix="¥"
+          />
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-6 mb-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">直近6ヶ月の発注推移</h2>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="count" name="発注数" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-gray-800">直近の発注</h2>
+            <Link href="/orders/new" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              + 新規発注
+            </Link>
+          </div>
+          {recent.length === 0 ? (
+            <div className="text-center text-gray-400 py-12">発注はまだありません</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-gray-500 text-left">
+                    <th className="py-3 px-2">発注No</th>
+                    <th className="py-3 px-2">納品日</th>
+                    <th className="py-3 px-2 text-right">金額</th>
+                    <th className="py-3 px-2">状態</th>
+                    <th className="py-3 px-2 text-center">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map(o => (
+                    <tr key={o.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-2 font-medium text-gray-700">{o.order_no}</td>
+                      <td className="py-3 px-2 text-gray-600">{o.delivery_date || '-'}</td>
+                      <td className="py-3 px-2 text-right text-gray-700">¥{o.total_amount.toLocaleString()}</td>
+                      <td className="py-3 px-2">
+                        <span className={`px-2 py-1 rounded-full text-xs ${STATUS_COLOR[o.status] || 'bg-gray-100 text-gray-700'}`}>
+                          {STATUS_LABEL[o.status] || o.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <Link href={`/orders/${o.id}`} className="text-blue-600 hover:underline">
+                          詳細
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ label, value, unit, loading, color, prefix }: {
+  label: string; value: number; unit: string; loading: boolean
+  color: 'indigo' | 'amber' | 'green' | 'blue' | 'purple'
+  prefix?: string
+}) {
+  const colorMap = {
+    indigo: 'from-indigo-500 to-indigo-600',
+    amber: 'from-amber-500 to-orange-500',
+    green: 'from-green-500 to-emerald-500',
+    blue: 'from-blue-500 to-cyan-500',
+    purple: 'from-purple-500 to-pink-500',
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow p-6 hover:shadow-md transition">
+      <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${colorMap[color]} mb-4`} />
+      <p className="text-sm text-gray-500 mb-1">{label}</p>
+      {loading ? (
+        <div className="h-9 bg-gray-200 rounded animate-pulse" />
+      ) : (
+        <p className="text-3xl font-bold text-gray-800">
+          {prefix || ''}{value.toLocaleString()}
+          <span className="text-base font-normal text-gray-500 ml-1">{unit}</span>
+        </p>
+      )}
     </div>
   )
 }
