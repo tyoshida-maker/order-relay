@@ -14,7 +14,7 @@ export default function AdminPage() {
       if (!user) { router.push('/login'); return }
       const { data: profile } = await supabase
         .from('or_user_profiles').select('role')
-        .eq('user_id', user.id).single()
+        .eq('id', user.id).single()
       if (profile?.role !== 'admin') { router.push('/login'); return }
       setUserEmail(user.email || '')
       setLoading(false)
