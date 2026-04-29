@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
           if (toEmail) {
                       await resend.emails.send({
-                                    from: 'Order Relay <noreply@order-relay.com>',
+                                    from: 'Order Relay <noreply@order-relay.classic.co.jp>',
                                     to: toEmail,
                                     subject: `[\u627f\u8a8d\u4f9d\u983c] ${order.order_no} - ${stepLabel}`,
                                     html: `
