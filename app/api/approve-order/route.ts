@@ -5,77 +5,122 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const supabase = createClient(
-              process.env.NEXT_PUBLIC_SUPABASE_URL!,
-              process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-
-const STEP_EMAILS: Record<number, string> = {
-              1: process.env.STEP1_EMAIL || '',
-              2: process.env.STEP2_EMAIL || '',
-              3: process.env.STEP3_EMAIL || '',
-};
-
-const STEP_LABELS: Record<number, string> = {
-              1: '\u7b2c1\u627f\u8a8d\uff08\u5225\u4f1a\u793e\u78ba\u8a8d\uff09',
-              2: '\u7b2c2\u627f\u8a8d\uff08\u4ed2\u4e16\u4eba\u78ba\u8a8d\uff09',
-              3: '\u7b2c3\u627f\u8a8d\uff08\u6700\u7d42\u627f\u8a8d\uff09',
-};
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(req: NextRequest) {
-        try {
-                  const body = await req.json();
-                  // Support both orderId and order_id, step defaults to 1
-          const orderId: string = body.orderId || body.order_id;
-                  const step: number = body.step || 1;
+  try {
+    const body = await req.json();
+    const orderId: string = body.orderId || body.order_id;
+    const step: number = body.step ?? 0;
 
-          if (!orderId) {
-                      return NextResponse.json({ error: 'orderId is required' }, { status: 400 });
-          }
+    if (!orderId) {
+      return NextResponse.json({ error: 'orderId is required' }, { status: 400 });
+    }
 
-          const { data: order, error: orderError } = await supabase
-                    .from('orders')
-                    .select('id, order_no, current_step, status')
-                    .eq('id', orderId)
-                    .single();
+    // 1. 注文と商流ルートを取得
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('id, order_no, current_step, status, flow_route_id, from_company_id')
+      .eq('id', orderId)
+      .single();
 
-          if (orderError || !order) {
-                      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-          }
+    if (orderError || !order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
 
-          const token = crypto.randomUUID();
-                  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    if (!order.flow_route_id) {
+      return NextResponse.json({ error: 'Order has no flow_route_id' }, { status: 400 });
+    }
 
-          const { error: tokenError } = await supabase
-                    .from('approval_tokens')
-                    .insert({ order_id: orderId, step, token, expires_at: expiresAt, used: false });
+    // 2. flow_route_companies から step に対応する承認者を取得
+    const { data: stepCompany, error: stepError } = await supabase
+      .from('flow_route_companies')
+      .select('approver_email, company_id, role, step_order, company_slug')
+      .eq('flow_route_id', order.flow_route_id)
+      .eq('step_order', step)
+      .single();
 
-          if (tokenError) {
-                      return NextResponse.json({ error: 'Failed to create token' }, { status: 500 });
-          }
+    if (stepError || !stepCompany) {
+      return NextResponse.json({ error: `No company found at step ${step}` }, { status: 404 });
+    }
 
-          const approveUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://order-relay.vercel.app'}/api/approve-token?token=${token}`;
-                  const toEmail = STEP_EMAILS[step];
-                  const stepLabel = STEP_LABELS[step] || `\u7b2c${step}\u627f\u8a8d`;
+    if (!stepCompany.approver_email) {
+      return NextResponse.json(
+        { error: `No approver_email set for step ${step}` },
+        { status: 400 }
+      );
+    }
 
-          if (toEmail) {
-                      await resend.emails.send({
-                                    from: 'Order Relay <noreply@order-relay.classic.co.jp>',
-                                    to: toEmail,
-                                    subject: `[\u627f\u8a8d\u4f9d\u983c] ${order.order_no} - ${stepLabel}`,
-                                    html: `
-                                              <h2>\u767a\u6ce8\u627f\u8a8d\u306e\u4f9d\u983c</h2>
-                                                        <p>\u6ce8\u6587\u756a\u53f7: <strong>${order.order_no}</strong></p>
-                                                                  <p>\u627f\u8a8d\u30b9\u30c6\u30c3\u30d7: ${stepLabel}</p>
-                                                                            <p>\u4ee5\u4e0b\u306e\u30dc\u30bf\u30f3\u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u627f\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\uff1a</p>
-                                                                                      <a href="${approveUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">\u627f\u8a8d\u3059\u308b</a>
-                                                                                                <p style="color:#666;font-size:12px;">\u3053\u306e\u30ea\u30f3\u30af\u306f24\u6642\u9593\u6709\u52b9\u3067\u3059\u3002</p>
-                                                                                                        `,
-                      });
-          }
+    // 3. 会社名を取得
+    const { data: company } = await supabase
+      .from('companies')
+      .select('name')
+      .eq('id', stepCompany.company_id)
+      .single();
 
-          return NextResponse.json({ success: true, approveUrl });
-        } catch (err) {
-                  console.error('approve-order error:', err);
-                  return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-        }
+    // 4. 承認トークンをINSERT
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('approval_tokens')
+      .insert({ order_id: orderId, step })
+      .select('token')
+      .single();
+
+    if (tokenError || !tokenData) {
+      console.error('[approve-order] token insert failed:', tokenError);
+      return NextResponse.json({ error: 'Failed to create token' }, { status: 500 });
+    }
+
+    // 5. 承認URL生成
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://order-relay.vercel.app';
+    const approveUrl = `${baseUrl}/api/approve-token?token=${tokenData.token}`;
+
+    // 6. メール送信
+    const fromAddress = process.env.MAIL_FROM || 'Order Relay <onboarding@resend.dev>';
+    const subject = `【承認依頼】${order.order_no} - ${company?.name || 'Order Relay'}`;
+    const htmlBody = `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+        <h2 style="color:#4f46e5;">承認依頼が届きました</h2>
+        <p>注文番号: <strong>${order.order_no}</strong></p>
+        <p>ステップ: ${step + 1}（${stepCompany.role}）</p>
+        <p>会社: ${company?.name || '-'}</p>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb;" />
+        <p>下記ボタンをクリックすると承認が完了します。</p>
+        <p style="margin:32px 0;">
+          <a href="${approveUrl}" 
+             style="background:#4f46e5;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">
+            このステップを承認する
+          </a>
+        </p>
+        <p style="color:#6b7280;font-size:12px;">
+          このリンクは7日間有効です。<br>
+          システムから自動送信されています。返信は不要です。
+        </p>
+      </div>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: fromAddress,
+        to: stepCompany.approver_email,
+        subject,
+        html: htmlBody,
+      });
+    } catch (mailError) {
+      console.error('[approve-order] mail send failed:', mailError);
+      // メール送信失敗してもトークンは作成済みなのでURLを返す
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      step, 
+      approveUrl,
+      sentTo: stepCompany.approver_email 
+    });
+
+  } catch (e) {
+    console.error('[approve-order] unexpected error:', e);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
