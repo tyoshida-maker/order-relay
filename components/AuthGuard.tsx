@@ -4,10 +4,9 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 // 認証不要のパブリックパス
-const PUBLIC_PATHS = ['/login']
+const PUBLIC_PATH_PREFIXES = ['/login', '/buyer/', '/middle/', '/seller/']
 const isPublicPath = (path: string) =>
-  PUBLIC_PATHS.includes(path) ||
-  /^/(buyer|middle|seller)\//.test(path)
+  PUBLIC_PATH_PREFIXES.some(prefix => path === prefix.replace(/\/$/, '') || path.startsWith(prefix))
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [checked, setChecked] = useState(false)
