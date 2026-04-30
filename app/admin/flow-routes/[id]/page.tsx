@@ -139,6 +139,40 @@ export default function FlowRouteEditPage() {
                   />
                 </div>
               </div>
+              <button
+                onClick={async () => {
+                  const ok = window.confirm(
+                    `${rc.company_name}（${rc.role}）にログイン情報を発行/再発行しますか？\n\n承認者メール（${rc.approver_email || '未登録'}）に送信されます。`
+                  )
+                  if (!ok) return
+                  try {
+                    const res = await fetch('/api/issue-credentials', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ flow_route_company_id: rc.id }),
+                    })
+                    const data = await res.json()
+                    if (!res.ok) {
+                      window.alert('発行失敗: ' + (data.error || 'unknown'))
+                      return
+                    }
+                    window.alert(
+                      (data.isReissue ? '再発行' : '発行') + '完了\n\n' +
+                      'メール: ' + data.email + '\n' +
+                      'ログインID: ' + data.loginId + '\n' +
+                      'ポータルURL: ' + data.portalUrl + '\n\n' +
+                      '※ パスワードは送信メールに記載されています'
+                    )
+                  } catch (e) {
+                    window.alert('エラー: ' + (e.message || 'unknown'))
+                  }
+                }}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs mr-2"
+                disabled={!rc.approver_email}
+                title={!rc.approver_email ? '承認者メールを先に登録してください' : ''}
+              >
+                ログイン情報発行
+              </button>
               <button onClick={() => handleRemove(rc.id)} className="text-red-600 hover:underline text-sm">削除</button>
             </div>
           ))}
