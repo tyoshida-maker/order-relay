@@ -144,7 +144,7 @@ export default function CompanyPortalPage() {
           </p>
 
           <button
-            onClick={() => router.push('/login?redirect=' + encodeURIComponent(`/${role}/${slug}`))}
+            onClick={() => { window.location.href = '/login' }}
             className={`w-full bg-gradient-to-r ${roleColor} text-white py-3 rounded-lg font-medium hover:opacity-90 transition`}
           >
             ログイン画面へ
