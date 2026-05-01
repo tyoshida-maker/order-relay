@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
         .single();
 
       if (nextToken) {
-        const fromAddress = process.env.MAIL_FROM || 'Order Relay <onboarding@resend.dev>';
+        const fromAddress = process.env.MAIL_FROM || 'Order Relay <noreply@orderrelay.com>';
         const nextUrl = `${baseUrl}/api/approve-token?token=${nextToken.token}`;
         
         try {
