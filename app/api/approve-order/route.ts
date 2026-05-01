@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
     const approveUrl = `${baseUrl}/api/approve-token?token=${tokenData.token}`;
 
     // 6. メール送信
-    const fromAddress = process.env.MAIL_FROM || 'Order Relay <onboarding@resend.dev>';
+    const fromAddress = process.env.MAIL_FROM || 'Order Relay <noreply@orderrelay.com>';
     const subject = `【承認依頼】${order.order_no} - ${company?.name || 'Order Relay'}`;
     const htmlBody = `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
