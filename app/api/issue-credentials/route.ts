@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     // 3. メール送信
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://order-relay.vercel.app';
     const portalUrl = `${baseUrl}/${role}/${slug}`;
-    const fromAddress = process.env.MAIL_FROM || 'Order Relay <onboarding@resend.dev>';
+    const fromAddress = process.env.MAIL_FROM || 'Order Relay <noreply@orderrelay.com>';
 
     const subject = isReissue
       ? `【再発行】${companyName}様 ログイン情報のお知らせ`
