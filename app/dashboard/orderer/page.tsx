@@ -127,19 +127,19 @@ export default function OrdererDashboard() {
         return q
       }
 
-      let totalQ = applyScope(supabase.from('orders').select('*', { count: 'exact', head: true }))
+      let totalQ = applyScope(supabase.from('orders').select('*', { count: 'exact' }))
       if (periodFilter) totalQ = totalQ.gte('created_at', periodFilter)
       const { count: totalCount } = await totalQ
 
       let progressQ = applyScope(
-        supabase.from('orders').select('*', { count: 'exact', head: true })
+        supabase.from('orders').select('*', { count: 'exact' })
           .in('status', ['confirmed', 'in_progress'])
       )
       if (periodFilter) progressQ = progressQ.gte('created_at', periodFilter)
       const { count: progressCount } = await progressQ
 
       let completedQ = applyScope(
-        supabase.from('orders').select('*', { count: 'exact', head: true })
+        supabase.from('orders').select('*', { count: 'exact' })
           .eq('status', 'completed')
       )
       if (periodFilter) completedQ = completedQ.gte('created_at', periodFilter)
