@@ -71,24 +71,24 @@ export default function AdminPage() {
     try {
       const periodFilter = getPeriodFilter()
 
-      let totalQuery = supabase.from('orders').select('*', { count: 'exact', head: true })
+      let totalQuery = supabase.from('orders').select('*', { count: 'exact' })
       if (periodFilter) totalQuery = totalQuery.gte('created_at', periodFilter)
       const { count: totalCount } = await totalQuery
 
       let progressQuery = supabase
-        .from('orders').select('*', { count: 'exact', head: true })
+        .from('orders').select('*', { count: 'exact' })
         .in('status', ['confirmed', 'in_progress'])
       if (periodFilter) progressQuery = progressQuery.gte('created_at', periodFilter)
       const { count: progressCount } = await progressQuery
 
       let completedQuery = supabase
-        .from('orders').select('*', { count: 'exact', head: true })
+        .from('orders').select('*', { count: 'exact' })
         .eq('status', 'completed')
       if (periodFilter) completedQuery = completedQuery.gte('created_at', periodFilter)
       const { count: completedCount } = await completedQuery
 
       const { count: companyCount } = await supabase
-        .from('companies').select('*', { count: 'exact', head: true })
+        .from('companies').select('*', { count: 'exact' })
 
       setStats({
         total: totalCount || 0,
