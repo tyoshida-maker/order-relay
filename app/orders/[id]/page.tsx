@@ -1,10 +1,19 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase, Company, Flow } from '@/lib/supabase'
+import { supabase, Company } from '@/lib/supabase'
 import { generateOrderPdf } from '@/lib/pdf-generator'
 
-type FlowStep = { role: string; company_id: string }
+type RouteStep = {
+  id: string
+  flow_route_id: string
+  company_id: string
+  role: string
+  step_order: number
+  company_slug: string | null
+  approver_email: string | null
+  companies: Company | null
+}
 
 type OrderWithItems = {
   id: string
@@ -12,6 +21,7 @@ type OrderWithItems = {
   order_date: string
   delivery_date: string | null
   flow_id: string | null
+  flow_route_id: string | null
   from_company_id: string | null
   notes: string | null
   status: string
@@ -29,14 +39,15 @@ type OrderWithItems = {
       category: string
     } | null
   }>
-  companies: Company | null
-  flows: Flow | null
 }
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [order, setOrder] = useState<OrderWithItems | null>(null)
+  const [fromCompany, setFromCompany] = useState<Company | null>(null)
+  const [flowRoute, setFlowRoute] = useState<{ id: string; name: string } | null>(null)
+  const [routeSteps, setRouteSteps] = useState<RouteStep[]>([])
   const [allCompanies, setAllCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -46,24 +57,53 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: orderData, error }, { data: compData }] = await Promise.all([
-        supabase
-          .from('orders')
-          .select(`
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items(
             *,
-            companies(*),
-            flows(*),
-            order_items(
-              *,
-              products(name, jan_code, category)
-            )
-          `)
-          .eq('id', id)
-          .single(),
-        supabase.from('companies').select('*')
-      ])
-      if (error) console.error(error)
+            products(name, jan_code, category)
+          )
+        `)
+        .eq('id', id)
+        .single()
+
+      if (orderError || !orderData) {
+        console.error('orders fetch error:', orderError)
+        setLoading(false)
+        return
+      }
+
       setOrder(orderData as OrderWithItems)
+
+      if (orderData.from_company_id) {
+        const { data: fcData } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', orderData.from_company_id)
+          .single()
+        if (fcData) setFromCompany(fcData as Company)
+      }
+
+      const routeId = orderData.flow_route_id || orderData.flow_id
+      if (routeId) {
+        const { data: routeData } = await supabase
+          .from('flow_routes')
+          .select('id, name')
+          .eq('id', routeId)
+          .single()
+        if (routeData) setFlowRoute(routeData)
+
+        const { data: stepsData } = await supabase
+          .from('flow_route_companies')
+          .select('*, companies(*)')
+          .eq('flow_route_id', routeId)
+          .order('step_order')
+        if (stepsData) setRouteSteps(stepsData as RouteStep[])
+      }
+
+      const { data: compData } = await supabase.from('companies').select('*')
       setAllCompanies((compData || []) as Company[])
       setLoading(false)
     }
@@ -77,8 +117,6 @@ export default function OrderDetailPage() {
     setGenerating(true)
     setGenMsg('')
     try {
-      const steps: FlowStep[] = order.flows ? (order.flows.steps as FlowStep[]) : []
-      const fromCompany = order.companies
       const items = order.order_items.map(i => ({
         name: i.products?.name || '',
         code: i.products?.jan_code || '',
@@ -88,39 +126,52 @@ export default function OrderDetailPage() {
         amount: i.amount ?? ((i.unit_price || 0) * i.quantity)
       }))
       let count = 0
-      // Generate order PDF: from_company -> first step buyer
-      const buyerStep = steps.find(s => s.role === 'buyer')
+      const buyerStep = routeSteps.find(s => s.role === 'buyer')
       if (buyerStep && fromCompany) {
-        const toComp = findCompany(buyerStep.company_id)
+        const toComp = buyerStep.companies || findCompany(buyerStep.company_id)
         generateOrderPdf({
           type: 'order',
           orderNo: order.order_no,
           orderDate: order.order_date,
           deliveryDate: order.delivery_date || order.order_date,
-          toCompany: { name: toComp?.name || '', address: toComp?.address || '', phone: toComp?.phone || '' },
-          fromCompany: { name: fromCompany.name, address: fromCompany.address || '', phone: fromCompany.phone || '' },
+          toCompany: {
+            name: toComp?.name || '',
+            address: toComp?.address || '',
+            phone: toComp?.phone || ''
+          },
+          fromCompany: {
+            name: fromCompany.name,
+            address: fromCompany.address || '',
+            phone: fromCompany.phone || ''
+          },
           items
         })
         count++
       }
-      // Generate provisional delivery: seller -> buyer
-      const sellerStep = steps.find(s => s.role === 'seller')
+      const sellerStep = routeSteps.find(s => s.role === 'seller')
       if (sellerStep && fromCompany) {
-        const sellerComp = findCompany(sellerStep.company_id)
-        const buyerComp = buyerStep ? findCompany(buyerStep.company_id) : null
+        const buyerComp = buyerStep ? (buyerStep.companies || findCompany(buyerStep.company_id)) : null
         generateOrderPdf({
           type: 'provisional_delivery',
           orderNo: order.order_no,
           orderDate: order.order_date,
           deliveryDate: order.delivery_date || order.order_date,
-          toCompany: { name: buyerComp?.name || fromCompany.name, address: buyerComp?.address || fromCompany.address || '', phone: buyerComp?.phone || fromCompany.phone || '' },
-          fromCompany: { name: fromCompany.name, address: fromCompany.address || '', phone: fromCompany.phone || '' },
+          toCompany: {
+            name: buyerComp?.name || fromCompany.name,
+            address: buyerComp?.address || fromCompany.address || '',
+            phone: buyerComp?.phone || fromCompany.phone || ''
+          },
+          fromCompany: {
+            name: fromCompany.name,
+            address: fromCompany.address || '',
+            phone: fromCompany.phone || ''
+          },
           items
         })
         count++
       }
       setGenMsg(count + '文書を開きました')
-    } catch(e) {
+    } catch (e) {
       console.error(e)
       setGenMsg('エラーが発生しました')
     }
@@ -140,12 +191,11 @@ export default function OrderDetailPage() {
       const data = await res.json()
       if (data.success) {
         setApproveMsg(data.is_completed ? '✅ 全ステップ承認完了！' : '✅ 承認しました。次のステップへ通知しました。')
-        // リロードして最新状態を取得
         setTimeout(() => window.location.reload(), 1500)
       } else {
         setApproveMsg('エラー: ' + (data.error || '不明なエラー'))
       }
-    } catch(e) {
+    } catch (e) {
       setApproveMsg('通信エラーが発生しました')
     }
     setApproving(false)
@@ -158,8 +208,6 @@ export default function OrderDetailPage() {
     const amt = item.amount ?? ((item.unit_price || 0) * item.quantity)
     return sum + amt
   }, 0)
-
-  const steps: FlowStep[] = order.flows ? (order.flows.steps as FlowStep[]) : []
 
   return (
     <div className='container mx-auto p-6'>
@@ -186,7 +234,7 @@ export default function OrderDetailPage() {
           <dl className='space-y-2 text-sm'>
             <div className='flex gap-2'>
               <dt className='text-gray-500 w-24'>発注元</dt>
-              <dd className='text-blue-700 font-medium'>{order.companies?.name}</dd>
+              <dd className='text-blue-700 font-medium'>{fromCompany?.name || '-'}</dd>
             </div>
             <div className='flex gap-2'>
               <dt className='text-gray-500 w-24'>発注日</dt>
@@ -194,28 +242,35 @@ export default function OrderDetailPage() {
             </div>
             <div className='flex gap-2'>
               <dt className='text-gray-500 w-24'>納品希望日</dt>
-              <dd>{order.delivery_date}</dd>
+              <dd>{order.delivery_date || '-'}</dd>
+            </div>
+            <div className='flex gap-2'>
+              <dt className='text-gray-500 w-24'>ステータス</dt>
+              <dd>
+                {order.status === 'completed' ? '🎉 完了' :
+                  order.status === 'in_progress' ? '⏳ 進行中' :
+                    order.status === 'confirmed' ? '📋 確定' : order.status}
+              </dd>
             </div>
           </dl>
         </div>
-        {order.flows && (
+        {flowRoute && routeSteps.length > 0 && (
           <div className='bg-blue-50 border border-blue-200 rounded-lg p-4'>
-            <h2 className='font-semibold mb-3'>商流: {order.flows.name}</h2>
+            <h2 className='font-semibold mb-3'>商流: {flowRoute.name}</h2>
             <div className='flex items-center gap-2 flex-wrap mb-3'>
-              {steps.map((step, i) => {
-                const comp = findCompany(step.company_id)
+              {routeSteps.map((step, i) => {
+                const comp = step.companies || findCompany(step.company_id)
                 const isApproved = (order.approved_steps || []).includes(i)
                 const isCurrent = (order.current_step ?? 0) === i && order.status !== 'completed'
                 return (
-                  <span key={i} className='flex items-center gap-1'>
-                    <span className={`text-xs px-2 py-1 rounded border ${
-                      isApproved ? 'bg-green-100 border-green-400 text-green-800' :
+                  <span key={step.id} className='flex items-center gap-1'>
+                    <span className={`text-xs px-2 py-1 rounded border ${isApproved ? 'bg-green-100 border-green-400 text-green-800' :
                       isCurrent ? 'bg-yellow-100 border-yellow-400 text-yellow-800 font-bold' :
-                      'bg-white border-blue-300 text-blue-800'
-                    }`}>
-                      {isApproved ? '✅ ' : isCurrent ? '⏳ ' : ''}{comp?.short_name || comp?.name || step.company_id}
+                        'bg-white border-blue-300 text-blue-800'
+                      }`}>
+                      {isApproved ? '✅ ' : isCurrent ? '⏳ ' : ''}{comp?.short_name || comp?.name || '会社未設定'}
                     </span>
-                    {i < steps.length - 1 && <span className='text-gray-400'>→</span>}
+                    {i < routeSteps.length - 1 && <span className='text-gray-400'>→</span>}
                   </span>
                 )
               })}
@@ -226,7 +281,11 @@ export default function OrderDetailPage() {
               <div className='mt-2'>
                 <p className='text-sm text-gray-600 mb-2'>
                   現在のステップ: <span className='font-bold text-yellow-700'>
-                    {(() => { const s = steps[order.current_step ?? 0]; const c = s ? findCompany(s.company_id) : null; return c?.name || '不明'; })()}
+                    {(() => {
+                      const s = routeSteps[order.current_step ?? 0]
+                      const c = s ? (s.companies || findCompany(s.company_id)) : null
+                      return c?.name || '不明'
+                    })()}
                   </span> が承認待ち
                 </p>
                 {approveMsg && <p className='text-sm mb-2 font-semibold text-green-700'>{approveMsg}</p>}
@@ -258,7 +317,7 @@ export default function OrderDetailPage() {
                 <tr key={item.id} className='border-b'>
                   <td className='py-2 px-3'>{item.products?.name}</td>
                   <td className='py-2 px-3 text-right'>{item.quantity}</td>
-                  <td className='py-2 px-3'>{item.products?.category}</td>
+                  <td className='py-2 px-3'>{item.products?.category || 'ロット'}</td>
                   <td className='py-2 px-3 text-right'>￥{(item.unit_price || 0).toLocaleString()}</td>
                   <td className='py-2 px-3 text-right'>￥{amt.toLocaleString()}</td>
                 </tr>
